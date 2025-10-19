@@ -495,29 +495,29 @@ st.markdown("""
 st.title("💊Implementasi Retrieval-Augmented Generation (RAG) untuk Sistem Tanya Jawab Informasi Obat Berbasis Conversational AI")
 st.markdown("**Chatbot dengan Context Awareness yang Lebih Baik**")
 
-# Sidebar untuk debug info
-with st.sidebar:
-    st.header("🔍 Debug Panel")
+# # Sidebar untuk debug info
+# with st.sidebar:
+#     st.header("🔍 Debug Panel")
     
-    if assistant.current_context:
-        st.success("**Active Context:**")
-        st.write(f"Drug: {assistant.current_context.get('current_drug', 'None')}")
-        st.write(f"Last Q: {assistant.current_context.get('last_question', 'None')[:50]}...")
-    else:
-        st.info("No active context")
+#     if assistant.current_context:
+#         st.success("**Active Context:**")
+#         st.write(f"Drug: {assistant.current_context.get('current_drug', 'None')}")
+#         st.write(f"Last Q: {assistant.current_context.get('last_question', 'None')[:50]}...")
+#     else:
+#         st.info("No active context")
     
-    st.markdown("---")
-    st.write("**Test Scenarios:**")
-    if st.button("🧪 Test Follow-up"):
-        test_questions = [
-            "Apa dosis amoxicillin?",
-            "untuk anak",
-            "efek sampingnya apa?"
-        ]
-        for q in test_questions:
-            st.session_state.messages.append({"role": "user", "content": q, "timestamp": "TEST"})
-            answer, sources = assistant.ask_question(q)
-            st.session_state.messages.append({"role": "bot", "content": answer, "timestamp": "TEST"})
+#     st.markdown("---")
+#     st.write("**Test Scenarios:**")
+#     if st.button("🧪 Test Follow-up"):
+#         test_questions = [
+#             "Apa dosis amoxicillin?",
+#             "untuk anak",
+#             "efek sampingnya apa?"
+#         ]
+#         for q in test_questions:
+#             st.session_state.messages.append({"role": "user", "content": q, "timestamp": "TEST"})
+#             answer, sources = assistant.ask_question(q)
+#             st.session_state.messages.append({"role": "bot", "content": answer, "timestamp": "TEST"})
 
 # Layout utama
 col_chat, col_info = st.columns([2, 1])
