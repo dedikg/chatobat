@@ -13,6 +13,66 @@ st.set_page_config(
     layout="wide"
 )
 
+# Custom CSS untuk button warna khusus
+st.markdown("""
+<style>
+    /* Button Kirim - Hijau */
+    div.stButton > button:first-child {
+        background-color: #28a745;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        font-weight: 500;
+    }
+    
+    div.stButton > button:first-child:hover {
+        background-color: #218838;
+        color: white;
+        border: none;
+    }
+    
+    /* Button Hapus - Merah */
+    div.stButton > button: nth-child(2) {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        font-weight: 500;
+    }
+    
+    div.stButton > button: nth-child(2):hover {
+        background-color: #c82333;
+        color: white;
+        border: none;
+    }
+    
+    /* Untuk form buttons */
+    .stForm button[kind="primary"] {
+        background-color: #28a745 !important;
+        color: white !important;
+        border: 1px solid #28a745 !important;
+    }
+    
+    .stForm button[kind="primary"]:hover {
+        background-color: #218838 !important;
+        border: 1px solid #1e7e34 !important;
+    }
+    
+    .stForm button[kind="secondary"] {
+        background-color: #dc3545 !important;
+        color: white !important;
+        border: 1px solid #dc3545 !important;
+    }
+    
+    .stForm button[kind="secondary"]:hover {
+        background-color: #c82333 !important;
+        border: 1px solid #bd2130 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # Setup Gemini API - DENGAN KEAMANAN
 try:
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
@@ -497,14 +557,13 @@ st.markdown("""
 
 # Header
 st.title("💊 Implementasi Retrieval-Augmented Generation (RAG) untuk Sistem Tanya Jawab Informasi Obat Berbasis Conversational AI")
-# st.markdown("**Silahkan Masukkan Pertanyaan anda tentang obat**")
+st.markdown("**Silahkan Masukkan Pertanyaan anda tentang obat**")
 
 # Layout utama - full width
-# st.markdown("### 💬 Percakapan")
+st.markdown("### 💬 Percakapan")
 
 # Chat container
-# st.markdown('<div class="chat-container">', unsafe_allow_html=True)
-st.markdown("---")
+st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 
 if not st.session_state.messages:
     st.markdown("""
@@ -549,7 +608,7 @@ else:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Input area
+# Input area dengan button warna custom
 with st.form("chat_form", clear_on_submit=True):
     user_input = st.text_input(
         "Tulis pertanyaan Anda:",
@@ -563,14 +622,14 @@ with st.form("chat_form", clear_on_submit=True):
         submit_btn = st.form_submit_button(
             "🚀 Kirim Pertanyaan", 
             use_container_width=True,
-             type="info"  # Button hijau muda untuk Kirim
+            type="primary"  # Button hijau
         )
     
     with col_btn2:
         clear_btn = st.form_submit_button(
             "🗑️ Hapus Chat", 
             use_container_width=True,
-            type="danger"  # Button merah muda untuk Hapus
+            type="secondary"  # Button merah
         )
 
 if submit_btn and user_input:
