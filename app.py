@@ -433,15 +433,15 @@ if clear_btn:
 
 # Footer dengan penjelasan RAG
 st.markdown("---")
-st.markdown("""
-### 🔍 Tentang Sistem RAG
-**Retrieval-Augmented Generation (RAG)** adalah teknologi AI yang:
-1. **Retrieve** - Mencari informasi relevan dari database obat
-2. **Augment** - Memperkaya konteks dengan informasi yang ditemukan  
-3. **Generate** - Menghasilkan jawaban yang akurat berdasarkan informasi terpercaya
+# st.markdown("""
+# ### 🔍 Tentang Sistem RAG
+# **Retrieval-Augmented Generation (RAG)** adalah teknologi AI yang:
+# 1. **Retrieve** - Mencari informasi relevan dari database obat
+# 2. **Augment** - Memperkaya konteks dengan informasi yang ditemukan  
+# 3. **Generate** - Menghasilkan jawaban yang akurat berdasarkan informasi terpercaya
 
-✅ **Keunggulan:** Jawaban lebih akurat, terkini, dan dapat dipertanggungjawabkan
-""")
+# ✅ **Keunggulan:** Jawaban lebih akurat, terkini, dan dapat dipertanggungjawabkan
+# """)
 
 # Medical disclaimer
 st.warning("""
@@ -449,3 +449,10 @@ st.warning("""
 Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat. 
 Jangan mengganti atau menghentikan pengobatan tanpa konsultasi profesional.
 """)
+# Footer
+st.markdown("---")
+st.markdown(
+    "<div style='text-align: center; color: #666;'>"
+    "Tugas Kuliah Sistem Biomedis - Implementasi RAG untuk Sistem Tanya Jawab Informasi Obat"
+    "</div>", 
+    unsafe_allow_html=True
