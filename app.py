@@ -7,7 +7,7 @@ import hashlib
 
 # Konfigurasi halaman
 st.set_page_config(
-    page_title="AI-PharmaAssist BPJS - Enhanced RAG",
+    page_title="AI-PharmaAssist BPJS - Chatbot",
     page_icon="💊",
     layout="wide"
 )
@@ -120,24 +120,12 @@ class EnhancedPharmaAssistant:
                 "gejala": "kolesterol tinggi, lemak darah tinggi, risiko jantung"
             }
         }
-        
-        # DEBUG: Print database structure untuk verifikasi
-        st.sidebar.write("🔍 DEBUG: Database Structure")
-        for drug_id, drug_info in drugs_db.items():
-            if 'gejala' in drug_info:
-                st.sidebar.write(f"✅ {drug_info['nama']}: gejala ada")
-            else:
-                st.sidebar.write(f"❌ {drug_info['nama']}: gejala TIDAK ada")
-        
         return drugs_db
     
     def _calculate_similarity_score(self, query, drug_info):
         """Enhanced semantic similarity scoring dengan symptom mapping"""
         query = query.lower()
         score = 0
-        
-        # DEBUG: Tampilkan perhitungan score
-        debug_info = []
         
         # 1. Direct symptom matching (HIGHEST PRIORITY)
         if 'gejala' in drug_info and drug_info['gejala']:
@@ -146,12 +134,10 @@ class EnhancedPharmaAssistant:
                 symptom_clean = symptom.strip()
                 if symptom_clean and symptom_clean in query:
                     score += 5
-                    debug_info.append(f"+5 (symptom: '{symptom_clean}')")
         
         # 2. Direct drug name match
         if drug_info['nama'].lower() in query:
             score += 5
-            debug_info.append("+5 (drug name)")
             
         # 3. Indication keyword matching
         indication_lower = drug_info['indikasi'].lower()
@@ -159,14 +145,12 @@ class EnhancedPharmaAssistant:
         for keyword in indication_keywords:
             if keyword and keyword in query:
                 score += 3
-                debug_info.append(f"+3 (indication: '{keyword}')")
         
         # 4. Brand name match
         for merek in drug_info['merek_dagang'].lower().split(','):
             merek_clean = merek.strip()
             if merek_clean and merek_clean in query:
                 score += 3
-                debug_info.append(f"+3 (brand: '{merek_clean}')")
         
         # 5. Category matching
         if 'kategori' in drug_info and drug_info['kategori']:
@@ -175,13 +159,6 @@ class EnhancedPharmaAssistant:
                 category_clean = category.strip()
                 if category_clean and category_clean in query:
                     score += 2
-                    debug_info.append(f"+2 (category: '{category_clean}')")
-        
-        # Tampilkan debug info jika score > 0
-        if score > 0:
-            st.sidebar.write(f"🔍 {drug_info['nama']}: Score {score}")
-            for info in debug_info:
-                st.sidebar.write(f"   {info}")
         
         return score
     
@@ -212,11 +189,8 @@ class EnhancedPharmaAssistant:
         results = []
         query_lower = query.lower()
         
-        st.sidebar.write(f"🔄 FALLBACK: Searching '{query_lower}'")
-        
         for symptom, drug_ids in symptom_drug_mapping.items():
             if symptom in query_lower:
-                st.sidebar.write(f"   ✅ Found symptom: '{symptom}'")
                 for drug_id in drug_ids:
                     if drug_id in self.drugs_db:
                         # Cek agar tidak duplicate
@@ -226,15 +200,12 @@ class EnhancedPharmaAssistant:
                                 'drug_info': self.drugs_db[drug_id],
                                 'drug_id': drug_id
                             })
-                            st.sidebar.write(f"   ➕ Added: {drug_id}")
         
         return results[:top_k]
     
     def semantic_search(self, query, top_k=3):
         """Enhanced semantic search dengan symptom understanding"""
         results = []
-        
-        st.sidebar.write(f"🎯 SEARCH: '{query}'")
         
         for drug_id, drug_info in self.drugs_db.items():
             score = self._calculate_similarity_score(query, drug_info)
@@ -245,48 +216,16 @@ class EnhancedPharmaAssistant:
                     'drug_info': drug_info,
                     'drug_id': drug_id
                 })
-                st.sidebar.write(f"✅ ADDED: {drug_info['nama']} (score: {score})")
         
         # FALLBACK: Jika tidak ada hasil, cari berdasarkan gejala
         if not results:
-            st.sidebar.write("🔄 No direct matches, trying fallback...")
             results = self._fallback_symptom_search(query, top_k)
         
         # Sort by score and return top_k
         results.sort(key=lambda x: x['score'], reverse=True)
         final_drugs = [result['drug_info'] for result in results[:top_k]]
         
-        st.sidebar.write(f"📊 FINAL: {[drug['nama'] for drug in final_drugs]}")
         return final_drugs
-    
-    def add_to_conversation_history(self, question, answer, sources):
-        """Add interaction to conversation history"""
-        conversation_history = st.session_state.get('conversation_history', [])
-        conversation_history.append({
-            'timestamp': datetime.now(),
-            'question': question,
-            'answer': answer,
-            'sources': [drug['nama'] for drug in sources],
-            'session_id': hashlib.md5(str(datetime.now().date()).encode()).hexdigest()[:8]
-        })
-        
-        # Keep only last 20 conversations
-        if len(conversation_history) > 20:
-            conversation_history.pop(0)
-        
-        st.session_state.conversation_history = conversation_history
-    
-    def get_conversation_context(self):
-        """Get recent conversation context for better continuity"""
-        conversation_history = st.session_state.get('conversation_history', [])
-        if len(conversation_history) < 2:
-            return ""
-        
-        recent_conv = conversation_history[-2:]  # Get last 2 exchanges
-        context = "Percakapan sebelumnya:\n"
-        for conv in recent_conv:
-            context += f"Q: {conv['question']}\nA: {conv['answer'][:100]}...\n"
-        return context
     
     def ask_question(self, question):
         """Enhanced RAG dengan Gemini"""
@@ -332,6 +271,7 @@ class EnhancedPharmaAssistant:
                 3. Jika informasi tidak tersedia, jangan membuat-buat jawaban
                 4. Sertakan nama obat yang relevan dalam jawaban
                 5. Tetap singkat namun informatif
+                6. Format jawaban dengan rapi dan mudah dibaca
                 
                 JAWABAN:
                 """
@@ -374,218 +314,269 @@ def load_assistant():
 
 assistant = load_assistant()
 
-# Initialize session state untuk conversation history
+# Initialize session state untuk chat
+if 'messages' not in st.session_state:
+    st.session_state.messages = []
+    
 if 'conversation_history' not in st.session_state:
     st.session_state.conversation_history = []
 
-# Enhanced UI Components
-st.title("💊 AI-PharmaAssist BPJS Kesehatan - Enhanced RAG")
-st.markdown("**Sistem Tanya Jawab Informasi Obat Berbasis Conversational AI dengan RAG**")
+# Custom CSS untuk tampilan chatbot
+st.markdown("""
+<style>
+    .chat-container {
+        max-height: 600px;
+        overflow-y: auto;
+        padding: 10px;
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        background-color: #fafafa;
+        margin-bottom: 20px;
+    }
+    .user-message {
+        background-color: #0078D4;
+        color: white;
+        padding: 12px;
+        border-radius: 15px 15px 0px 15px;
+        margin: 5px 0;
+        max-width: 80%;
+        margin-left: auto;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .bot-message {
+        background-color: white;
+        color: #333;
+        padding: 12px;
+        border-radius: 15px 15px 15px 0px;
+        margin: 5px 0;
+        max-width: 80%;
+        margin-right: auto;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .message-time {
+        font-size: 0.8em;
+        opacity: 0.7;
+        margin-top: 5px;
+    }
+    .quick-questions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 10px 0;
+    }
+    .quick-question-btn {
+        background-color: #f0f2f6;
+        border: 1px solid #d0d0d0;
+        border-radius: 20px;
+        padding: 8px 16px;
+        font-size: 0.9em;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .quick-question-btn:hover {
+        background-color: #0078D4;
+        color: white;
+    }
+    .sources-badge {
+        background-color: #e8f4fd;
+        border: 1px solid #b3e0ff;
+        border-radius: 10px;
+        padding: 8px 12px;
+        margin: 5px 0;
+        font-size: 0.85em;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Header dengan logo
+col1, col2 = st.columns([1, 4])
+with col1:
+    st.image("💊", width=80)
+with col2:
+    st.title("AI-PharmaAssist BPJS")
+    st.markdown("**Chatbot Informasi Obat BPJS Kesehatan**")
+
 st.markdown("---")
 
-# Sidebar dengan informasi enhanced
-with st.sidebar:
-    st.header("⚙️ Debug & System Info")
-    
-    # Debug information
-    with st.expander("🔍 Debug Information"):
-        st.write("### Database Verification")
-        for drug_id, drug_info in assistant.drugs_db.items():
-            has_gejala = 'gejala' in drug_info and drug_info['gejala']
-            st.write(f"{'✅' if has_gejala else '❌'} {drug_info['nama']}: gejala {'ada' if has_gejala else 'TIDAK ada'}")
-    
-    st.info("""
-    **🤖 Enhanced RAG Features:**
-    • Semantic Search dengan Symptom Mapping
-    • Conversation Memory  
-    • Expanded Drug Database (7+ obat)
-    • Context-Aware Responses
-    • Fallback Mechanisms
-    • Symptom-to-Drug Matching
-    """)
-    
-    st.markdown("---")
-    st.subheader("🔧 System Status")
-    if gemini_available:
-        st.success("✅ Gemini 2.0 Flash: Connected")
-    else:
-        st.warning("⚠️ Gemini: Using Fallback Mode")
-    st.metric("Jumlah Obat", len(assistant.drugs_db))
-    st.metric("Percakapan Tersimpan", len(st.session_state.conversation_history))
+# Layout utama
+col_chat, col_info = st.columns([2, 1])
 
-# Main Interface dengan tabs enhanced
-tab1, tab2, tab3, tab4 = st.tabs(["🔍 Tanya Obat", "📊 Data Obat", "💬 Riwayat", "🎯 Demo Cepat"])
-
-with tab1:
-    st.subheader("Tanya Informasi Obat - Enhanced RAG")
+with col_chat:
+    # Container chat
+    st.subheader("💬 Chat dengan Asisten Farmasi")
     
-    # Conversation starter
-    if not st.session_state.conversation_history:
-        st.info("""
-        💡 **Tips:** Anda bisa menanyakan:
-        • **Gejala:** "obat sakit kepala", "obat demam", "obat maag"
-        • **Informasi obat:** "dosis paracetamol", "efek samping amoxicillin"
-        • **Kondisi khusus:** "bolehkah ibu hamil minum obat alergi?"
-        """)
-    
-    question = st.text_area(
-        "Masukkan pertanyaan tentang obat:",
-        placeholder="Contoh: Obat untuk sakit kepala? Apa dosis amoxicillin? Bolehkah ibu hamil minum obat alergi? Interaksi simvastatin dengan apa saja?",
-        height=100
-    )
-    
-    col1, col2, col3 = st.columns([1, 1, 2])
-    
-    with col1:
-        ask_btn = st.button("🎯 Tanya AI", type="primary", use_container_width=True)
-    
-    with col2:
-        if st.button("🔄 Clear Chat", use_container_width=True):
-            # Clear conversation history dari session state
-            st.session_state.conversation_history = []
-            st.rerun()
-    
-    if ask_btn and question:
-        with st.spinner("🔍 Mencari informasi dengan Enhanced RAG..."):
-            answer, sources = assistant.ask_question(question)
-            
-            # Add to conversation history
-            assistant.add_to_conversation_history(question, answer, sources)
-            
-            # Display results
-            st.success("💡 **Informasi Obat:**")
-            st.write(answer)
-            
-            if sources:
-                with st.expander("📚 Sumber Informasi & Relevansi"):
-                    for drug in sources:
-                        st.write(f"• **{drug['nama']}** - {drug['golongan']}")
-                        st.caption(f"Indikasi: {drug['indikasi']}")
-                        if 'gejala' in drug and drug['gejala']:
-                            st.caption(f"Gejala terkait: {drug['gejala']}")
-            
-            # Medical disclaimer
-            st.error("""
-            ⚠️ **PERINGATAN MEDIS:** 
-            Informasi ini untuk edukasi dan referensi saja. 
-            **Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat.**
-            Jangan mengganti atau menghentikan pengobatan tanpa konsultasi profesional.
-            """)
-
-with tab2:
-    st.subheader("📊 Enhanced Drug Database")
-    
-    # Tampilkan verifikasi database
-    st.write("### ✅ Database Verification")
-    verification_data = []
-    for drug_id, drug_info in assistant.drugs_db.items():
-        verification_data.append({
-            "Nama Obat": drug_info["nama"],
-            "Gejala Field": "✅ Ada" if 'gejala' in drug_info and drug_info['gejala'] else "❌ Tidak Ada",
-            "Gejala Content": drug_info.get('gejala', 'TIDAK ADA')[:50] + "..." if drug_info.get('gejala') else "KOSONG"
-        })
-    
-    st.dataframe(pd.DataFrame(verification_data), use_container_width=True)
-    
-    # Search and filter
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        search_term = st.text_input("🔍 Cari obat:", placeholder="Nama obat, golongan, gejala, atau indikasi...")
-    
-    with col2:
-        filter_category = st.selectbox("Filter Kategori:", ["Semua", "Analgesik", "Antibiotik", "Vitamin", "Antihistamin", "Statin", "PPI", "NSAID"])
-    
-    # Display filtered drugs
-    filtered_drugs = []
-    for drug_id, drug_info in assistant.drugs_db.items():
-        match = False
-        if search_term:
-            search_lower = search_term.lower()
-            if (search_lower in drug_info['nama'].lower() or 
-                search_lower in drug_info['golongan'].lower() or
-                search_lower in drug_info['indikasi'].lower() or
-                ('gejala' in drug_info and search_lower in drug_info['gejala'].lower())):
-                match = True
-        elif filter_category != "Semua":
-            if filter_category.lower() in drug_info['golongan'].lower():
-                match = True
-        else:
-            match = True
-        
-        if match:
-            filtered_drugs.append(drug_info)
-    
-    # Display as dataframe
-    if filtered_drugs:
-        drugs_df = pd.DataFrame([{
-            "Nama Obat": drug["nama"],
-            "Golongan": drug["golongan"],
-            "Indikasi": drug["indikasi"][:80] + "..." if len(drug["indikasi"]) > 80 else drug["indikasi"],
-            "Merek Dagang": drug["merek_dagang"],
-            "Gejala Terkait": drug.get("gejala", "TIDAK TERDEFINISI")[:60] + "..." if drug.get("gejala") and len(drug.get("gejala", "")) > 60 else drug.get("gejala", "TIDAK TERDEFINISI")
-        } for drug in filtered_drugs])
-        
-        st.dataframe(drugs_df, use_container_width=True, hide_index=True)
-    else:
-        st.warning("Tidak ada obat yang sesuai dengan filter.")
-    
-    # Medical disclaimer untuk tab Data Obat
-    st.error("""
-    ⚠️ **PERINGATAN MEDIS:** 
-    Informasi ini untuk edukasi dan referensi saja. 
-    **Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat.**
-    Jangan mengganti atau menghentikan pengobatan tanpa konsultasi profesional.
-    """)
-
-with tab3:
-    st.subheader("💬 Riwayat Percakapan")
-    
-    if st.session_state.conversation_history:
-        for i, conv in enumerate(reversed(st.session_state.conversation_history)):
-            with st.expander(f"🗨️ Percakapan {len(st.session_state.conversation_history)-i} - {conv['timestamp'].strftime('%H:%M:%S')}"):
-                st.write(f"**Q:** {conv['question']}")
-                st.write(f"**A:** {conv['answer']}")
-                st.caption(f"📚 Sumber: {', '.join(conv['sources'])}")
-    else:
-        st.info("Belum ada riwayat percakapan. Mulai tanya jawab di tab 'Tanya Obat'.")
-
-with tab4:
-    st.subheader("🎯 Demo Cepat - Enhanced RAG")
-    
-    demo_questions = [
+    # Quick questions
+    st.markdown("**🎯 Pertanyaan Cepat:**")
+    quick_questions = [
         "Obat untuk sakit kepala?",
-        "Apa dosis amoxicillin untuk dewasa?",
-        "Bolehkah ibu hamil minum obat alergi?",
-        "Apa efek samping simvastatin?",
-        "Obat untuk maag dan asam lambung?",
+        "Apa dosis amoxicillin?",
+        "Obat untuk maag?",
         "Vitamin untuk daya tahan tubuh?",
-        "Interaksi paracetamol dengan alkohol?",
-        "Obat untuk kolesterol tinggi?"
+        "Efek samping simvastatin?"
     ]
     
-    cols = st.columns(2)
-    for i, question in enumerate(demo_questions):
-        with cols[i % 2]:
-            if st.button(f"🎯 {question}", use_container_width=True):
-                with st.spinner("Mencari informasi..."):
+    cols = st.columns(3)
+    for i, question in enumerate(quick_questions):
+        with cols[i % 3]:
+            if st.button(question, use_container_width=True, key=f"quick_{i}"):
+                # Add user message
+                st.session_state.messages.append({
+                    "role": "user", 
+                    "content": question,
+                    "timestamp": datetime.now().strftime("%H:%M")
+                })
+                
+                # Get bot response
+                with st.spinner("🔄 Mencari informasi..."):
                     answer, sources = assistant.ask_question(question)
-                    assistant.add_to_conversation_history(question, answer, sources)
                     
-                    st.success("💡 **Jawaban:**")
-                    st.write(answer)
+                    # Add to conversation history
+                    st.session_state.conversation_history.append({
+                        'timestamp': datetime.now(),
+                        'question': question,
+                        'answer': answer,
+                        'sources': [drug['nama'] for drug in sources]
+                    })
                     
-                    if sources:
-                        with st.expander("📚 Sumber:"):
-                            for drug in sources:
-                                st.write(f"• **{drug['nama']}**")
+                    # Add bot message
+                    st.session_state.messages.append({
+                        "role": "bot", 
+                        "content": answer,
+                        "sources": sources,
+                        "timestamp": datetime.now().strftime("%H:%M")
+                    })
+                
+                st.rerun()
+    
+    # Chat container
+    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+    
+    if not st.session_state.messages:
+        st.markdown("""
+        <div style='text-align: center; padding: 40px; color: #666;'>
+            <h3>👋 Selamat Datang di AI-PharmaAssist!</h3>
+            <p>Silakan tanyakan informasi tentang obat-obatan BPJS Kesehatan</p>
+            <p><small>Contoh: "Obat untuk sakit kepala?", "Dosis paracetamol?", "Efek samping amoxicillin?"</small></p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        for message in st.session_state.messages:
+            if message["role"] == "user":
+                st.markdown(f"""
+                <div class="user-message">
+                    <div>{message["content"]}</div>
+                    <div class="message-time">{message["timestamp"]}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class="bot-message">
+                    <div>{message["content"]}</div>
+                    <div class="message-time">{message["timestamp"]}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Tampilkan sources jika ada
+                if "sources" in message and message["sources"]:
+                    with st.expander("📚 Lihat Sumber Informasi"):
+                        for drug in message["sources"]:
+                            st.markdown(f"""
+                            <div class="sources-badge">
+                                <strong>💊 {drug['nama']}</strong><br>
+                                <small>{drug['golongan']}</small>
+                            </div>
+                            """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Input area
+    with st.form("chat_form", clear_on_submit=True):
+        user_input = st.text_area(
+            "Tulis pertanyaan Anda:",
+            placeholder="Contoh: Obat untuk sakit kepala? Apa dosis amoxicillin? Bolehkah ibu hamil minum obat alergi?",
+            height=80,
+            key="user_input"
+        )
+        
+        col_btn1, col_btn2, col_btn3 = st.columns([2, 1, 1])
+        
+        with col_btn1:
+            submit_btn = st.form_submit_button("🚀 Kirim Pertanyaan", use_container_width=True)
+        
+        with col_btn2:
+            if st.form_submit_button("🗑️ Hapus Chat", use_container_width=True):
+                st.session_state.messages = []
+                st.session_state.conversation_history = []
+                st.rerun()
+    
+    if submit_btn and user_input:
+        # Add user message
+        st.session_state.messages.append({
+            "role": "user", 
+            "content": user_input,
+            "timestamp": datetime.now().strftime("%H:%M")
+        })
+        
+        # Get bot response
+        with st.spinner("🔍 Mencari informasi obat..."):
+            answer, sources = assistant.ask_question(user_input)
+            
+            # Add to conversation history
+            st.session_state.conversation_history.append({
+                'timestamp': datetime.now(),
+                'question': user_input,
+                'answer': answer,
+                'sources': [drug['nama'] for drug in sources]
+            })
+            
+            # Add bot message
+            st.session_state.messages.append({
+                "role": "bot", 
+                "content": answer,
+                "sources": sources,
+                "timestamp": datetime.now().strftime("%H:%M")
+            })
+        
+        st.rerun()
 
-# Enhanced Footer
+with col_info:
+    st.subheader("ℹ️ Informasi Sistem")
+    
+    # Status sistem
+    st.markdown("### 🔧 Status Sistem")
+    if gemini_available:
+        st.success("✅ Gemini AI: Terhubung")
+    else:
+        st.warning("⚠️ Gemini AI: Mode Fallback")
+    
+    st.metric("💊 Obat dalam Database", len(assistant.drugs_db))
+    st.metric("💬 Pesan dalam Chat", len(st.session_state.messages))
+    
+    # Database info
+    with st.expander("📊 Database Obat"):
+        for drug_id, drug_info in assistant.drugs_db.items():
+            st.write(f"• **{drug_info['nama']}** - {drug_info['golongan']}")
+    
+    # Medical disclaimer
+    st.markdown("""
+    ### ⚠️ Peringatan Medis
+    
+    **Informasi ini untuk edukasi dan referensi saja.**
+    
+    Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat. Jangan mengganti atau menghentikan pengobatan tanpa konsultasi profesional.
+    
+    ---
+    **💊 AI-PharmaAssist BPJS**  
+    *Powered by Gemini AI & Enhanced RAG*
+    """)
+
+# Footer
 st.markdown("---")
 st.markdown(
-    "<div style='text-align: center'>"
-    "💊 <b>AI-PharmaAssist Enhanced RAG</b> - Healthkathon 2025 | "
-    "Powered by <b>Gemini 2.0 Flash</b> | "
-    "Enhanced Semantic Search & Symptom Mapping"
+    "<div style='text-align: center; color: #666;'>"
+    "💊 AI-PharmaAssist BPJS Kesehatan - Healthkathon 2025 | "
+    "Chatbot Informasi Obat dengan Enhanced RAG"
     "</div>", 
     unsafe_allow_html=True
 )
