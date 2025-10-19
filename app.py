@@ -455,4 +455,4 @@ st.markdown(
     "<div style='text-align: center; color: #666;'>"
     "Tugas Kuliah Sistem Biomedis - Implementasi RAG untuk Sistem Tanya Jawab Informasi Obat"
     "</div>", 
-    unsafe_allow_html=True
+    unsafe_allow_html=True)
