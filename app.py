@@ -503,7 +503,7 @@ st.markdown("**Silahkan Masukkan Pertanyaan anda tentang obat**")
 st.markdown("### 💬 Percakapan")
 
 # Chat container
-st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+# st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 
 if not st.session_state.messages:
     st.markdown("""
