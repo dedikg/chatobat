@@ -454,3 +454,74 @@ st.markdown(
     "Tugas Kuliah Sistem Biomedis - Implementasi RAG untuk Sistem Tanya Jawab Informasi Obat berbasis AI"
     "</div>", 
     unsafe_allow_html=True)
+# ==================== EVALUATION SECTION ====================
+
+def show_evaluation_section():
+    """Section untuk evaluasi akurasi"""
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🧪 Evaluation Tools")
+    
+    if st.sidebar.button("Run Accuracy Test"):
+        with st.spinner("Running accuracy evaluation..."):
+            # Simple evaluator
+            class QuickEvaluator:
+                def __init__(self, assistant):
+                    self.assistant = assistant
+                    self.test_cases = [
+                        {
+                            'question': 'Apa dosis paracetamol untuk dewasa?',
+                            'expected_keywords': ['500-1000 mg', '4-6 jam', '4000 mg/hari'],
+                            'expected_drug': 'Paracetamol'
+                        },
+                        {
+                            'question': 'Efek samping amoxicillin?', 
+                            'expected_keywords': ['diare', 'mual', 'ruam kulit'],
+                            'expected_drug': 'Amoxicillin'
+                        }
+                    ]
+                
+                def evaluate(self):
+                    results = []
+                    for test in self.test_cases:
+                        answer, sources = self.assistant.ask_question(test['question'])
+                        
+                        # Calculate scores
+                        keyword_score = self._keyword_score(answer, test['expected_keywords'])
+                        drug_score = 1.0 if any(d['nama'] == test['expected_drug'] for d in sources) else 0.0
+                        
+                        results.append({
+                            'Question': test['question'],
+                            'Expected Drug': test['expected_drug'],
+                            'Keyword Score': f"{keyword_score:.0%}",
+                            'Drug Match': "✅" if drug_score == 1.0 else "❌",
+                            'Answer Preview': answer[:80] + "..." if len(answer) > 80 else answer
+                        })
+                    return results
+                
+                def _keyword_score(self, answer, keywords):
+                    answer_lower = answer.lower()
+                    found = sum(1 for kw in keywords if kw.lower() in answer_lower)
+                    return found / len(keywords)
+            
+            # Run evaluation
+            evaluator = QuickEvaluator(assistant)
+            results = evaluator.evaluate()
+            
+            # Show results
+            st.subheader("📊 Accuracy Evaluation Results")
+            for result in results:
+                with st.expander(f"❓ {result['Question']}"):
+                    st.write(f"**Expected Drug:** {result['Expected Drug']}")
+                    st.write(f"**Keyword Score:** {result['Keyword Score']}")
+                    st.write(f"**Drug Match:** {result['Drug Match']}")
+                    st.write(f"**Answer:** {result['Answer Preview']}")
+            
+            # Summary
+            total_tests = len(results)
+            avg_score = sum(float(r['Keyword Score'].strip('%'))/100 for r in results) / total_tests
+            st.metric("Average Keyword Accuracy", f"{avg_score:.1%}")
+
+# Panggil fungsi evaluasi
+show_evaluation_section()
+
+# ==================== END OF FILE ====================
