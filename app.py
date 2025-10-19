@@ -245,6 +245,9 @@ class EnhancedPharmaAssistant:
         for drug_id, drug_info in self.drugs_db.items():
             score = self._calculate_similarity_score(query, drug_info)
             
+            # DEBUG: Tampilkan score untuk setiap obat
+            # print(f"DEBUG: {drug_info['nama']} - Score: {score}")
+            
             # Lower threshold untuk menangkap gejala
             if score >= 1:
                 results.append({
@@ -290,6 +293,11 @@ class EnhancedPharmaAssistant:
         """Enhanced RAG with conversation context"""
         # Semantic search for relevant drugs
         relevant_drugs = self.semantic_search(question)
+        
+        # DEBUG: Tampilkan obat yang ditemukan
+        # print(f"DEBUG: Found {len(relevant_drugs)} drugs for query: {question}")
+        # for drug in relevant_drugs:
+        #     print(f"DEBUG: - {drug['nama']}")
         
         if not relevant_drugs:
             available_drugs = ", ".join([drug['nama'] for drug in self.drugs_db.values()])
@@ -379,11 +387,16 @@ class EnhancedPharmaAssistant:
         is_symptom_question = any(symptom in question_lower for symptom in 
                                 ['sakit kepala', 'demam', 'pilek', 'alergi', 'maag', 'nyeri', 'kolesterol'])
         
+        if is_symptom_question:
+            answer_parts.append(f"**Untuk gejala '{question}':**")
+            answer_parts.append("Berikut obat yang dapat digunakan:")
+        
         for drug in drugs:
             if is_symptom_question:
                 # For symptom questions, provide more contextual answer
-                drug_answer = [f"**{drug['nama']}** dapat digunakan untuk:"]
+                drug_answer = [f"**💊 {drug['nama']}**"]
                 drug_answer.append(f"• **Indikasi:** {drug['indikasi']}")
+                drug_answer.append(f"• **Dosis Dewasa:** {drug['dosis_dewasa']}")
             else:
                 drug_answer = [f"**{drug['nama']}** ({drug['merek_dagang']})"]
             
@@ -422,7 +435,6 @@ class EnhancedPharmaAssistant:
         
         # Add context for symptom questions
         if is_symptom_question and len(drugs) > 0:
-            answer_parts.insert(0, f"**Untuk pertanyaan tentang '{question}':**")
             answer_parts.append("\n💡 **Tips:** Pilih obat sesuai dengan gejala dan kondisi Anda. Perhatikan dosis dan kontraindikasi.")
         
         # Add medical disclaimer
