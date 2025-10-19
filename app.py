@@ -201,8 +201,14 @@ class LightweightRAGPharmaAssistant:
         # Step 3: Generate response dengan RAG
         answer = self._generate_rag_response(question, rag_context, retrieved_chunks)
         
-        # Step 4: Get sources untuk display
-        sources = list(set([chunk['drug_info'] for chunk in retrieved_chunks]))
+        # Step 4: Get sources untuk display - FIXED: tidak menggunakan set untuk dictionary
+        sources = []
+        seen_drugs = set()
+        for chunk in retrieved_chunks:
+            drug_name = chunk['drug_info']['nama']
+            if drug_name not in seen_drugs:
+                sources.append(chunk['drug_info'])
+                seen_drugs.add(drug_name)
         
         # Update context
         self._update_conversation_context(question, answer, sources)
