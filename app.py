@@ -323,7 +323,7 @@ st.markdown("""
 
 # Header
 st.title("💊 Sistem Tanya Jawab Informasi Obat")
-st.markdown("**Implementasi RAG untuk Sistem Tanya Jawab Informasi Obat**")
+st.markdown("**Implementasi RAG untuk Sistem Tanya Jawab Informasi Obat Berbasis AI**")
 
 # RAG Indicator
 # st.markdown("""
@@ -339,12 +339,10 @@ st.markdown("**Implementasi RAG untuk Sistem Tanya Jawab Informasi Obat**")
 if not st.session_state.messages:
     st.markdown("""
     <div class="welcome-message">
-        <h3>👋 Selamat Datang di Sistem RAG Obat!</h3>
-        <p>Sistem ini menggunakan <strong>Retrieval-Augmented Generation (RAG)</strong> untuk memberikan informasi obat yang akurat</p>
+        <h3>👋 Selamat Datang di Asisten Obat AI</h3>
+        <p>Silahkan tanyakan terkait informasi Obat-obatan</p>
         <p><strong>Contoh pertanyaan:</strong></p>
-        <p>"Apa dosis paracetamol untuk dewasa?"</p>
-        <p>"Efek samping amoxicillin?"</p>
-        <p>"Interaksi obat omeprazole?"</p>
+        <p>"Dosis paracetamol untuk dewasa?" | "Efek samping amoxicillin?" | "Interaksi obat omeprazole?"</p>
     </div>
     """, unsafe_allow_html=True)
 else:
@@ -366,7 +364,7 @@ else:
             
             # Tampilkan sources jika ada
             if "sources" in message and message["sources"]:
-                with st.expander("📚 Sumber Informasi (RAG Retrieval)"):
+                with st.expander("📚 Informasi Obat"):
                     for drug in message["sources"]:
                         st.write(f"• **{drug['nama']}** - {drug['golongan']}")
 
