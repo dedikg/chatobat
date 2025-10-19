@@ -520,7 +520,7 @@ st.markdown("**Silahkan Masukkan Pertanyaan anda tentang obat**")
 #             st.session_state.messages.append({"role": "bot", "content": answer, "timestamp": "TEST"})
 
 # Layout utama
-col_chat = st.columns([2])
+col_chat, = st.columns([2])
 
 with col_chat:
     # Container chat
