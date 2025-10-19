@@ -341,15 +341,12 @@ st.markdown("---")
 
 # Sidebar dengan informasi enhanced
 with st.sidebar:
-    st.header("⚙️ Tentang Enhanced RAG")
+    st.header("⚙️ Sistem Tanya jawab Obat")
     st.info("""
     **🤖 Enhanced RAG Features:**
-    • Semantic Search Scoring
-    • Conversation Memory
-    • Expanded Drug Database (7+ obat)
-    • Context-Aware Responses
-    • Fallback Mechanisms
-    
+    • RAG
+    • Gemini LLM
+    • Streamlit Cloud
     **💊 Database:** 7+ obat umum dengan kategori
     """)
     
@@ -363,11 +360,7 @@ with st.sidebar:
     st.metric("Percakapan Tersimpan", len(assistant.conversation_history))
     
     st.markdown("---")
-    st.subheader("💊 Daftar Obat Tersedia")
-    for drug_id, drug_info in assistant.drugs_db.items():
-        with st.expander(f"📦 {drug_info['nama']}"):
-            st.caption(f"Golongan: {drug_info['golongan']}")
-            st.caption(f"Indikasi: {drug_info['indikasi'][:50]}...")
+
 
 # Main Interface dengan tabs enhanced
 tab1, tab2, tab3, tab4 = st.tabs(["🔍 Tanya Obat", "📊 Data Obat", "💬 Riwayat", "🎯 Demo Cepat"])
