@@ -356,3 +356,4 @@ def load_rag_assistant():
     return TrueRAGPharmaAssistant()
 
 assistant = load_rag_assistant()
+
