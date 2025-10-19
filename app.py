@@ -511,16 +511,16 @@ test_scenarios = [
     "Efek samping Paracetamol?"
 ]
 
-cols = st.columns(3)
-for i, scenario in enumerate(test_scenarios):
-    with cols[i]:
-        if st.button(scenario, use_container_width=True, key=f"test_{i}"):
-            # Add user message
-            st.session_state.messages.append({
-                "role": "user", 
-                "content": scenario,
-                "timestamp": datetime.now().strftime("%H:%M")
-            })
+# cols = st.columns(3)
+# for i, scenario in enumerate(test_scenarios):
+#     with cols[i]:
+#         if st.button(scenario, use_container_width=True, key=f"test_{i}"):
+#             # Add user message
+#             st.session_state.messages.append({
+#                 "role": "user", 
+#                 "content": scenario,
+#                 "timestamp": datetime.now().strftime("%H:%M")
+#             })
             
             # Get bot response
             with st.spinner("🔄 Memproses..."):
