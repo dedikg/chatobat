@@ -493,7 +493,7 @@ st.markdown("""
 
 # Header
 st.title("💊Implementasi Retrieval-Augmented Generation (RAG) untuk Sistem Tanya Jawab Informasi Obat Berbasis Conversational AI")
-st.markdown("**Chatbot dengan Context Awareness yang Lebih Baik**")
+st.markdown("**Silahkan Masukkan Pertanyaan anda tentang obat**")
 
 # # Sidebar untuk debug info
 # with st.sidebar:
@@ -666,33 +666,33 @@ with col_chat:
         assistant.current_context = {}  # Clear context juga
         st.rerun()
 
-with col_info:
-    st.subheader("ℹ️ Cara Kerja")
+# with col_info:
+#     st.subheader("ℹ️ Cara Kerja")
     
-    st.success("""
-    **🎯 Context Awareness:**
+#     st.success("""
+#     **🎯 Context Awareness:**
     
-    • **Mengingat Obat**: Sistem tahu obat yang sedang dibahas
-    • **Pertanyaan Pendek**: Bisa jawab "untuk anak?" setelah sebut obat  
-    • **Auto-Enhance**: Query otomatis diperkaya dengan konteks
-    • **Smart Fallback**: Multiple strategies untuk konteks
-    """)
+#     • **Mengingat Obat**: Sistem tahu obat yang sedang dibahas
+#     • **Pertanyaan Pendek**: Bisa jawab "untuk anak?" setelah sebut obat  
+#     • **Auto-Enhance**: Query otomatis diperkaya dengan konteks
+#     • **Smart Fallback**: Multiple strategies untuk konteks
+#     """)
     
-    st.metric("💊 Obat dalam Database", len(assistant.drugs_db))
-    st.metric("🔗 Context Active", "✅" if assistant.current_context else "❌")
+#     st.metric("💊 Obat dalam Database", len(assistant.drugs_db))
+#     st.metric("🔗 Context Active", "✅" if assistant.current_context else "❌")
     
-    st.warning("""
-    **⚠️ Peringatan Medis**
+#     st.warning("""
+#     **⚠️ Peringatan Medis**
     
-    Informasi untuk edukasi saja. 
-    Selalu konsultasi dengan dokter sebelum menggunakan obat.
-    """)
+#     Informasi untuk edukasi saja. 
+#     Selalu konsultasi dengan dokter sebelum menggunakan obat.
+#     """)
 
 # Footer
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: #666;'>"
-    "💊 AI-PharmaAssist BPJS - Enhanced Context Awareness"
+    "Tugas Kuliah Sistem Biomedis"
     "</div>", 
     unsafe_allow_html=True
 )
