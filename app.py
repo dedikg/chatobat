@@ -502,48 +502,6 @@ st.markdown("**Silahkan Masukkan Pertanyaan anda tentang obat**")
 # Layout utama - full width
 st.markdown("### 💬 Percakapan")
 
-# Quick questions untuk testing context
-st.markdown("**Pertanyaan Cepat:**")
-
-test_scenarios = [
-    "Dosis amoxicillin?",
-    "Apa Obat Sakit Kepala?",
-    "Efek samping Paracetamol?"
-]
-
-cols = st.columns(3)
-for i, scenario in enumerate(test_scenarios):
-    with cols[i]:
-        if st.button(scenario, use_container_width=True, key=f"test_{i}"):
-            # Add user message
-            st.session_state.messages.append({
-                "role": "user", 
-                "content": scenario,
-                "timestamp": datetime.now().strftime("%H:%M")
-            })
-            
-            # Get bot response
-            with st.spinner("🔄 Memproses..."):
-                answer, sources = assistant.ask_question(scenario)
-                
-                # Add to conversation history
-                st.session_state.conversation_history.append({
-                    'timestamp': datetime.now(),
-                    'question': scenario,
-                    'answer': answer,
-                    'sources': [drug['nama'] for drug in sources]
-                })
-                
-                # Add bot message
-                st.session_state.messages.append({
-                    "role": "bot", 
-                    "content": answer,
-                    "sources": sources,
-                    "timestamp": datetime.now().strftime("%H:%M")
-                })
-            
-            st.rerun()
-
 # Chat container
 st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 
