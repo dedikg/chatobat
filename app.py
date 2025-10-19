@@ -453,7 +453,7 @@ if submit_btn and user_input:
     })
     
     # Get RAG response
-    with st.spinner("🔍 RAG System: Retrieving information..."):
+    with st.spinner("🔍 Mencari Jawaban: Retrieving information..."):
         answer, sources = assistant.ask_question(user_input)
         
         # Add to conversation history
