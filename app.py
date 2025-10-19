@@ -325,9 +325,9 @@ if 'conversation_history' not in st.session_state:
 st.markdown("""
 <style>
     .chat-container {
-        max-height: 600px;
+        max-height: 500px;
         overflow-y: auto;
-        padding: 10px;
+        padding: 20px;
         border: 1px solid #e0e0e0;
         border-radius: 10px;
         background-color: #fafafa;
@@ -336,41 +336,45 @@ st.markdown("""
     .user-message {
         background-color: #0078D4;
         color: white;
-        padding: 12px;
-        border-radius: 15px 15px 0px 15px;
-        margin: 5px 0;
-        max-width: 80%;
+        padding: 12px 16px;
+        border-radius: 18px 18px 4px 18px;
+        margin: 8px 0;
+        max-width: 70%;
         margin-left: auto;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .bot-message {
         background-color: white;
         color: #333;
-        padding: 12px;
-        border-radius: 15px 15px 15px 0px;
-        margin: 5px 0;
-        max-width: 80%;
+        padding: 12px 16px;
+        border-radius: 18px 18px 18px 4px;
+        margin: 8px 0;
+        max-width: 70%;
         margin-right: auto;
         border: 1px solid #e0e0e0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .message-time {
-        font-size: 0.8em;
+        font-size: 0.75em;
         opacity: 0.7;
         margin-top: 5px;
+        text-align: right;
+    }
+    .bot-message .message-time {
+        text-align: left;
     }
     .quick-questions {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
-        margin: 10px 0;
+        gap: 8px;
+        margin: 15px 0;
     }
     .quick-question-btn {
         background-color: #f0f2f6;
         border: 1px solid #d0d0d0;
-        border-radius: 20px;
-        padding: 8px 16px;
-        font-size: 0.9em;
+        border-radius: 16px;
+        padding: 6px 12px;
+        font-size: 0.85em;
         cursor: pointer;
         transition: all 0.3s;
     }
@@ -381,18 +385,26 @@ st.markdown("""
     .sources-badge {
         background-color: #e8f4fd;
         border: 1px solid #b3e0ff;
+        border-radius: 8px;
+        padding: 6px 10px;
+        margin: 8px 0;
+        font-size: 0.8em;
+    }
+    .welcome-message {
+        text-align: center;
+        padding: 30px;
+        color: #666;
+        background: white;
         border-radius: 10px;
-        padding: 8px 12px;
-        margin: 5px 0;
-        font-size: 0.85em;
+        border: 2px dashed #e0e0e0;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Header dengan logo
+# Header dengan logo yang diperbaiki
 col1, col2 = st.columns([1, 4])
 with col1:
-    st.image("💊", width=80)
+    st.markdown("<h1 style='text-align: center; font-size: 48px;'>💊</h1>", unsafe_allow_html=True)
 with col2:
     st.title("AI-PharmaAssist BPJS")
     st.markdown("**Chatbot Informasi Obat BPJS Kesehatan**")
@@ -413,7 +425,8 @@ with col_chat:
         "Apa dosis amoxicillin?",
         "Obat untuk maag?",
         "Vitamin untuk daya tahan tubuh?",
-        "Efek samping simvastatin?"
+        "Efek samping simvastatin?",
+        "Interaksi obat alergi?"
     ]
     
     cols = st.columns(3)
@@ -454,7 +467,7 @@ with col_chat:
     
     if not st.session_state.messages:
         st.markdown("""
-        <div style='text-align: center; padding: 40px; color: #666;'>
+        <div class="welcome-message">
             <h3>👋 Selamat Datang di AI-PharmaAssist!</h3>
             <p>Silakan tanyakan informasi tentang obat-obatan BPJS Kesehatan</p>
             <p><small>Contoh: "Obat untuk sakit kepala?", "Dosis paracetamol?", "Efek samping amoxicillin?"</small></p>
@@ -499,16 +512,13 @@ with col_chat:
             key="user_input"
         )
         
-        col_btn1, col_btn2, col_btn3 = st.columns([2, 1, 1])
+        col_btn1, col_btn2 = st.columns([3, 1])
         
         with col_btn1:
             submit_btn = st.form_submit_button("🚀 Kirim Pertanyaan", use_container_width=True)
         
         with col_btn2:
-            if st.form_submit_button("🗑️ Hapus Chat", use_container_width=True):
-                st.session_state.messages = []
-                st.session_state.conversation_history = []
-                st.rerun()
+            clear_btn = st.form_submit_button("🗑️ Hapus Chat", use_container_width=True)
     
     if submit_btn and user_input:
         # Add user message
@@ -538,6 +548,11 @@ with col_chat:
                 "timestamp": datetime.now().strftime("%H:%M")
             })
         
+        st.rerun()
+    
+    if clear_btn:
+        st.session_state.messages = []
+        st.session_state.conversation_history = []
         st.rerun()
 
 with col_info:
