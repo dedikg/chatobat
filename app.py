@@ -1,3 +1,4 @@
+pip install --upgrade streamlit
 import streamlit as st
 import pandas as pd
 import google.generativeai as genai
@@ -374,7 +375,7 @@ with st.sidebar:
         except Exception:
             pass
         assistant.conversation_history.clear()
-        st.experimental_rerun()
+        st.rerun()
 
 # Tabs
 tab1, tab2, tab3, tab4 = st.tabs(["🔍 Tanya Obat", "📊 Data Obat", "💬 Riwayat", "🎯 Demo Cepat"])
