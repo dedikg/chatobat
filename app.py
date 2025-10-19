@@ -3,9 +3,6 @@ import pandas as pd
 import google.generativeai as genai
 import numpy as np
 from datetime import datetime
-import hashlib
-import re
-import json
 
 # Konfigurasi halaman
 st.set_page_config(
@@ -23,11 +20,10 @@ except Exception as e:
     st.error(f"❌ Error konfigurasi Gemini API: {str(e)}")
     gemini_available = False
 
-class LightweightRAGPharmaAssistant:
+class SimpleRAGPharmaAssistant:
     def __init__(self):
         self.drugs_db = self._initialize_drug_database()
         self.current_context = {}
-        self.knowledge_base = self._build_knowledge_base()
         
     def _initialize_drug_database(self):
         """Initialize comprehensive drug database"""
@@ -77,148 +73,137 @@ class LightweightRAGPharmaAssistant:
         }
         return drugs_db
     
-    def _build_knowledge_base(self):
-        """Build RAG knowledge base dengan chunking"""
-        knowledge_base = []
-        
-        for drug_id, drug_info in self.drugs_db.items():
-            # Create multiple knowledge chunks untuk retrieval
-            chunks = [
-                {
-                    'type': 'overview',
-                    'content': f"{drug_info['nama']} ({drug_info['golongan']}) - {drug_info['indikasi']}",
-                    'drug_id': drug_id,
-                    'keywords': ['overview', 'pengenalan', 'umum'] + drug_info['kategori'].split(',')
-                },
-                {
-                    'type': 'dosis',
-                    'content': f"Dosis {drug_info['nama']}: Dewasa: {drug_info['dosis_dewasa']}, Anak: {drug_info['dosis_anak']}",
-                    'drug_id': drug_id,
-                    'keywords': ['dosis', 'takaran', 'aturan', 'penggunaan', 'berapa']
-                },
-                {
-                    'type': 'efek_samping',
-                    'content': f"Efek samping {drug_info['nama']}: {drug_info['efek_samping']}",
-                    'drug_id': drug_id,
-                    'keywords': ['efek', 'samping', 'bahaya', 'resiko', 'efek samping']
-                },
-                {
-                    'type': 'kontraindikasi',
-                    'content': f"Kontraindikasi {drug_info['nama']}: {drug_info['kontraindikasi']}",
-                    'drug_id': drug_id,
-                    'keywords': ['kontra', 'larangan', 'tidak boleh', 'hindari', 'kontraindikasi']
-                },
-                {
-                    'type': 'interaksi',
-                    'content': f"Interaksi {drug_info['nama']}: {drug_info['interaksi']}",
-                    'drug_id': drug_id,
-                    'keywords': ['interaksi', 'bereaksi', 'makanan', 'minuman', 'obat lain']
-                },
-                {
-                    'type': 'peringatan',
-                    'content': f"Peringatan {drug_info['nama']}: {drug_info.get('peringatan', 'Tidak ada peringatan khusus')}",
-                    'drug_id': drug_id,
-                    'keywords': ['peringatan', 'warning', 'hati-hati', 'perhatian']
-                }
-            ]
-            knowledge_base.extend(chunks)
-        
-        return knowledge_base
-    
     def _rag_retrieve(self, query, top_k=3):
-        """Retrieve relevant knowledge chunks menggunakan semantic search sederhana"""
+        """Retrieve relevant information menggunakan semantic search sederhana"""
         query_lower = query.lower()
         results = []
         
-        for chunk in self.knowledge_base:
+        for drug_id, drug_info in self.drugs_db.items():
             score = 0
             
-            # Keyword matching
-            for keyword in chunk['keywords']:
-                if keyword in query_lower:
+            # Drug name matching (high priority)
+            if drug_info['nama'].lower() in query_lower:
+                score += 10
+            
+            # Brand name matching
+            for merek in drug_info['merek_dagang'].lower().split(','):
+                merek_clean = merek.strip()
+                if merek_clean and merek_clean in query_lower:
+                    score += 8
+            
+            # Symptom matching
+            if 'gejala' in drug_info and drug_info['gejala']:
+                symptoms = drug_info['gejala'].lower().split(',')
+                for symptom in symptoms:
+                    symptom_clean = symptom.strip()
+                    if symptom_clean and symptom_clean in query_lower:
+                        score += 5
+            
+            # Indication keyword matching
+            indication_lower = drug_info['indikasi'].lower()
+            indication_keywords = [kw.strip() for kw in indication_lower.split(',')]
+            for keyword in indication_keywords:
+                if keyword and keyword in query_lower:
                     score += 3
             
-            # Content matching
-            content_lower = chunk['content'].lower()
-            query_words = query_lower.split()
-            for word in query_words:
-                if len(word) > 3 and word in content_lower:
-                    score += 1
+            # Category matching
+            if 'kategori' in drug_info and drug_info['kategori']:
+                categories = drug_info['kategori'].lower().split(',')
+                for category in categories:
+                    category_clean = category.strip()
+                    if category_clean and category_clean in query_lower:
+                        score += 2
             
-            # Drug name matching (high priority)
-            drug_name = self.drugs_db[chunk['drug_id']]['nama'].lower()
-            if drug_name in query_lower:
-                score += 5
+            # Question type matching
+            follow_up_keywords = {
+                'dosis': ['dosis', 'berapa', 'takaran', 'aturan pakai', 'dosis untuk'],
+                'efek': ['efek samping', 'side effect', 'bahaya', 'efeknya'],
+                'kontraindikasi': ['kontra', 'tidak boleh', 'hindari', 'larangan', 'kontraindikasi'],
+                'interaksi': ['interaksi', 'bereaksi dengan', 'makanan', 'minuman', 'interaksinya'],
+                'indikasi': ['untuk apa', 'kegunaan', 'manfaat', 'indikasi', 'guna']
+            }
+            
+            for key, keywords in follow_up_keywords.items():
+                if any(kw in query_lower for kw in keywords):
+                    if key == 'dosis' and drug_info.get('dosis_dewasa'):
+                        score += 4
+                    elif key in drug_info and drug_info[key]:
+                        score += 4
             
             if score > 0:
                 results.append({
                     'score': score,
-                    'chunk': chunk,
-                    'drug_info': self.drugs_db[chunk['drug_id']]
+                    'drug_info': drug_info,
+                    'drug_id': drug_id
                 })
         
         # Sort by score dan ambil top_k
         results.sort(key=lambda x: x['score'], reverse=True)
         return results[:top_k]
     
-    def _build_rag_context(self, retrieved_chunks):
-        """Build context dari retrieved chunks untuk generator"""
-        if not retrieved_chunks:
+    def _build_rag_context(self, retrieved_results):
+        """Build context untuk RAG generator"""
+        if not retrieved_results:
             return "Tidak ada informasi yang relevan ditemukan dalam database."
         
-        context = "🔍 **INFORMASI TERKAIT YANG DITEMUKAN:**\n\n"
+        context = "🔍 **INFORMASI OBAT YANG RELEVAN:**\n\n"
         
-        # Group by drug untuk organisasi yang lebih baik
-        drugs_context = {}
-        for result in retrieved_chunks:
-            drug_name = result['drug_info']['nama']
-            if drug_name not in drugs_context:
-                drugs_context[drug_name] = []
-            drugs_context[drug_name].append(result)
-        
-        for drug_name, chunks in drugs_context.items():
-            context += f"**💊 {drug_name}**\n"
-            context += f"*{self.drugs_db[[c['chunk']['drug_id'] for c in chunks][0]]['golongan']}*\n\n"
-            
-            for result in chunks:
-                chunk = result['chunk']
-                context += f"**{chunk['type'].replace('_', ' ').title()}:** {chunk['content']}\n\n"
+        for i, result in enumerate(retrieved_results, 1):
+            drug_info = result['drug_info']
+            context += f"**OBAT {i}: {drug_info['nama']}**\n"
+            context += f"- Golongan: {drug_info['golongan']}\n"
+            context += f"- Indikasi: {drug_info['indikasi']}\n"
+            context += f"- Dosis Dewasa: {drug_info['dosis_dewasa']}\n"
+            context += f"- Dosis Anak: {drug_info['dosis_anak']}\n"
+            context += f"- Efek Samping: {drug_info['efek_samping']}\n"
+            context += f"- Kontraindikasi: {drug_info['kontraindikasi']}\n"
+            context += f"- Interaksi: {drug_info['interaksi']}\n"
+            if 'peringatan' in drug_info:
+                context += f"- Peringatan: {drug_info['peringatan']}\n"
+            context += "\n"
         
         return context
     
     def ask_question(self, question):
-        """Main RAG interface"""
-        # Step 1: Retrieve relevant information
-        retrieved_chunks = self._rag_retrieve(question)
-        
-        if not retrieved_chunks:
-            available_drugs = ", ".join([drug['nama'] for drug in self.drugs_db.values()])
-            return f"❌ Tidak ditemukan informasi yang relevan. Coba tanyakan tentang: {available_drugs}", []
-        
-        # Step 2: Build context
-        rag_context = self._build_rag_context(retrieved_chunks)
-        
-        # Step 3: Generate response dengan RAG
-        answer = self._generate_rag_response(question, rag_context, retrieved_chunks)
-        
-        # Step 4: Get sources untuk display - FIXED: tidak menggunakan set untuk dictionary
-        sources = []
-        seen_drugs = set()
-        for chunk in retrieved_chunks:
-            drug_name = chunk['drug_info']['nama']
-            if drug_name not in seen_drugs:
-                sources.append(chunk['drug_info'])
-                seen_drugs.add(drug_name)
-        
-        # Update context
-        self._update_conversation_context(question, answer, sources)
-        
-        return answer, sources
+        """Main RAG interface - FIXED VERSION"""
+        try:
+            # Step 1: Retrieve relevant information
+            retrieved_results = self._rag_retrieve(question)
+            
+            if not retrieved_results:
+                available_drugs = ", ".join([drug['nama'] for drug in self.drugs_db.values()])
+                return f"❌ Tidak ditemukan informasi yang relevan. Coba tanyakan tentang: {available_drugs}", []
+            
+            # Step 2: Build context
+            rag_context = self._build_rag_context(retrieved_results)
+            
+            # Step 3: Generate response dengan RAG
+            answer = self._generate_rag_response(question, rag_context)
+            
+            # Step 4: Get sources - SIMPLE AND SAFE APPROACH
+            sources = []
+            seen_drug_names = set()
+            
+            for result in retrieved_results:
+                drug_name = result['drug_info']['nama']
+                if drug_name not in seen_drug_names:
+                    sources.append(result['drug_info'])
+                    seen_drug_names.add(drug_name)
+            
+            # Update context
+            self._update_conversation_context(question, answer, sources)
+            
+            return answer, sources
+            
+        except Exception as e:
+            st.error(f"Error dalam RAG system: {e}")
+            return "Maaf, terjadi error dalam sistem. Silakan coba lagi.", []
     
-    def _generate_rag_response(self, question, context, retrieved_chunks):
+    def _generate_rag_response(self, question, context):
         """Generate response menggunakan RAG pattern"""
         if not gemini_available:
-            return self._generate_simple_response(retrieved_chunks)
+            # Fallback ke response sederhana
+            return f"Sistem RAG menemukan informasi berikut:\n\n{context}"
         
         try:
             model = genai.GenerativeModel('gemini-2.0-flash')
@@ -250,42 +235,7 @@ class LightweightRAGPharmaAssistant:
             
         except Exception as e:
             st.error(f"⚠️ Error AI: {e}")
-            return self._generate_simple_response(retrieved_chunks)
-    
-    def _generate_simple_response(self, retrieved_chunks):
-        """Simple response tanpa AI"""
-        if not retrieved_chunks:
-            return "Maaf, tidak ada informasi yang ditemukan."
-        
-        response_parts = []
-        
-        # Group by drug
-        drugs_data = {}
-        for chunk in retrieved_chunks:
-            drug_name = chunk['drug_info']['nama']
-            if drug_name not in drugs_data:
-                drugs_data[drug_name] = []
-            drugs_data[drug_name].append(chunk)
-        
-        for drug_name, chunks in drugs_data.items():
-            response_parts.append(f"**💊 {drug_name}**")
-            
-            for chunk in chunks:
-                chunk_type = chunk['chunk']['type']
-                if chunk_type == 'dosis':
-                    response_parts.append(f"📋 **Dosis:** {chunk['chunk']['content']}")
-                elif chunk_type == 'efek_samping':
-                    response_parts.append(f"⚠️ **Efek Samping:** {chunk['chunk']['content']}")
-                elif chunk_type == 'kontraindikasi':
-                    response_parts.append(f"🚫 **Kontraindikasi:** {chunk['chunk']['content']}")
-                elif chunk_type == 'interaksi':
-                    response_parts.append(f"🔄 **Interaksi:** {chunk['chunk']['content']}")
-                else:
-                    response_parts.append(f"📖 {chunk['chunk']['content']}")
-            
-            response_parts.append("")  # Empty line between drugs
-        
-        return "\n".join(response_parts)
+            return f"Sistem RAG menemukan informasi berikut:\n\n{context}"
     
     def _update_conversation_context(self, question, answer, sources):
         """Update conversation context"""
@@ -298,7 +248,7 @@ class LightweightRAGPharmaAssistant:
 # Initialize RAG assistant
 @st.cache_resource
 def load_rag_assistant():
-    return LightweightRAGPharmaAssistant()
+    return SimpleRAGPharmaAssistant()
 
 assistant = load_rag_assistant()
 
