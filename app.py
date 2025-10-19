@@ -7,7 +7,7 @@ import hashlib
 
 # Konfigurasi halaman
 st.set_page_config(
-    page_title="AI-PharmaAssist BPJS - Enhanced RAG",
+    page_title="AI-asdasdasdasd BPJS - Enhanced RAG",
     page_icon="💊",
     layout="wide"
 )
