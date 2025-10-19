@@ -333,8 +333,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Chat container
-st.markdown("### 💬 Percakapan")
-st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+# st.markdown("### 💬 Percakapan")
+# st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 
 if not st.session_state.messages:
     st.markdown("""
