@@ -382,7 +382,7 @@ with st.form("chat_form", clear_on_submit=True):
     
     with col_btn1:
         submit_btn = st.form_submit_button(
-            "🚀 Tanya dengan RAG", 
+            "🚀 Tanya", 
             use_container_width=True
         )
     
