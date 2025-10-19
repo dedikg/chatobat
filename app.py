@@ -245,9 +245,6 @@ class EnhancedPharmaAssistant:
         for drug_id, drug_info in self.drugs_db.items():
             score = self._calculate_similarity_score(query, drug_info)
             
-            # DEBUG: Tampilkan score untuk setiap obat
-            # print(f"DEBUG: {drug_info['nama']} - Score: {score}")
-            
             # Lower threshold untuk menangkap gejala
             if score >= 1:
                 results.append({
@@ -293,11 +290,6 @@ class EnhancedPharmaAssistant:
         """Enhanced RAG with conversation context"""
         # Semantic search for relevant drugs
         relevant_drugs = self.semantic_search(question)
-        
-        # DEBUG: Tampilkan obat yang ditemukan
-        # print(f"DEBUG: Found {len(relevant_drugs)} drugs for query: {question}")
-        # for drug in relevant_drugs:
-        #     print(f"DEBUG: - {drug['nama']}")
         
         if not relevant_drugs:
             available_drugs = ", ".join([drug['nama'] for drug in self.drugs_db.values()])
@@ -437,9 +429,6 @@ class EnhancedPharmaAssistant:
         if is_symptom_question and len(drugs) > 0:
             answer_parts.append("\n💡 **Tips:** Pilih obat sesuai dengan gejala dan kondisi Anda. Perhatikan dosis dan kontraindikasi.")
         
-        # Add medical disclaimer
-        answer_parts.append("\n\n⚠️ **PERINGATAN MEDIS:** Informasi ini untuk edukasi. Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat.")
-        
         return "\n\n".join(answer_parts)
 
 # Initialize enhanced assistant
@@ -542,6 +531,14 @@ with tab1:
                 st.write(f"**Obat yang ditemukan:** {len(sources)} obat relevan")
                 if sources:
                     st.write("**Algoritma:** Semantic search dengan symptom mapping")
+            
+            # Medical disclaimer - DITAMBAHKAN DI SINI
+            st.error("""
+            ⚠️ **PERINGATAN MEDIS:** 
+            Informasi ini untuk edukasi dan referensi saja. 
+            **Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat.**
+            Jangan mengganti atau menghentikan pengobatan tanpa konsultasi profesional.
+            """)
 
 with tab2:
     st.subheader("📊 Enhanced Drug Database")
@@ -614,6 +611,14 @@ with tab2:
             st.write(f"**⚠️ Efek Samping:** {drug['efek_samping']}")
             st.write(f"**🚫 Kontraindikasi:** {drug['kontraindikasi']}")
             st.write(f"**🔄 Interaksi:** {drug['interaksi']}")
+    
+    # Medical disclaimer untuk tab Data Obat
+    st.error("""
+    ⚠️ **PERINGATAN MEDIS:** 
+    Informasi ini untuk edukasi dan referensi saja. 
+    **Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat.**
+    Jangan mengganti atau menghentikan pengobatan tanpa konsultasi profesional.
+    """)
 
 with tab3:
     st.subheader("💬 Riwayat Percakapan")
@@ -626,6 +631,14 @@ with tab3:
                 st.caption(f"Sumber: {', '.join(conv['sources'])}")
     else:
         st.info("Belum ada riwayat percakapan. Mulai tanya obat di tab 'Tanya Obat'.")
+    
+    # Medical disclaimer untuk tab Riwayat
+    st.error("""
+    ⚠️ **PERINGATAN MEDIS:** 
+    Informasi ini untuk edukasi dan referensi saja. 
+    **Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat.**
+    Jangan mengganti atau menghentikan pengobatan tanpa konsultasi profesional.
+    """)
 
 with tab4:
     st.subheader("🎯 Demo Cepat - Enhanced")
@@ -662,6 +675,14 @@ if 'demo_question' in st.session_state:
             with st.expander("📚 Sumber Informasi"):
                 for drug in sources:
                     st.write(f"• **{drug['nama']}** - {drug['golongan']}")
+        
+        # Medical disclaimer untuk demo questions
+        st.error("""
+        ⚠️ **PERINGATAN MEDIS:** 
+        Informasi ini untuk edukasi dan referensi saja. 
+        **Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat.**
+        Jangan mengganti atau menghentikan pengobatan tanpa konsultasi profesional.
+        """)
 
 # Enhanced Footer
 st.markdown("---")
