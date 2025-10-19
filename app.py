@@ -27,12 +27,12 @@ class EnhancedPharmaAssistant:
         self.conversation_history = []
         
     def _initialize_drug_database(self):
-        """Initialize expanded drug database dengan gejala"""
+        """Initialize expanded drug database dengan gejala yang benar"""
         return {
             "paracetamol": {
                 "nama": "Paracetamol",
                 "golongan": "Analgesik dan Antipiretik",
-                "indikasi": "Demam, nyeri ringan hingga sedang, sakit kepala, sakit gigi, nyeri otot, nyeri haid",
+                "indikasi": "Demam, nyeri ringan hingga sedang, sakit kepala, sakit gigi, nyeri otot, nyeri haid, migrain",
                 "dosis_dewasa": "500-1000 mg setiap 4-6 jam, maksimal 4000 mg/hari",
                 "dosis_anak": "10-15 mg/kgBB setiap 4-6 jam",
                 "efek_samping": "Gangguan pencernaan, ruam kulit (jarang)",
@@ -40,12 +40,12 @@ class EnhancedPharmaAssistant:
                 "interaksi": "Alcohol meningkatkan risiko kerusakan hati",
                 "merek_dagang": "Panadol, Sanmol, Tempra, Biogesic",
                 "kategori": "analgesik, antipiretik, nyeri, demam",
-                "gejala": "sakit kepala, demam, nyeri, sakit gigi, nyeri haid, pusing, panas"
+                "gejala": "sakit kepala, demam, nyeri, sakit gigi, nyeri haid, pusing, panas, migrain"
             },
             "amoxicillin": {
                 "nama": "Amoxicillin",
                 "golongan": "Antibiotik Beta-Laktam", 
-                "indikasi": "Infeksi bakteri saluran napas, telinga, kulit, saluran kemih, radang tenggorokan",
+                "indikasi": "Infeksi bakteri saluran napas, telinga, kulit, saluran kemih, radang tenggorokan, sinusitis",
                 "dosis_dewasa": "250-500 mg setiap 8 jam",
                 "dosis_anak": "20-50 mg/kgBB/hari dibagi 3 dosis",
                 "efek_samping": "Diare, mual, ruam kulit, reaksi alergi",
@@ -53,12 +53,12 @@ class EnhancedPharmaAssistant:
                 "interaksi": "Mengurangi efektivitas kontrasepsi oral",
                 "merek_dagang": "Amoxan, Kalmoxillin, Moxigra",
                 "kategori": "antibiotik, infeksi, bakteri",
-                "gejala": "infeksi, radang, demam karena infeksi, batuk berdahak"
+                "gejala": "infeksi, radang, demam karena infeksi, batuk berdahak, radang tenggorokan"
             },
             "omeprazole": {
                 "nama": "Omeprazole", 
                 "golongan": "Penghambat Pompa Proton (PPI)",
-                "indikasi": "Tukak lambung, GERD, dispepsia, sindrom Zollinger-Ellison, maag, asam lambung",
+                "indikasi": "Tukak lambung, GERD, dispepsia, sindrom Zollinger-Ellison, maag, asam lambung, heartburn",
                 "dosis_dewasa": "20-40 mg sekali sehari sebelum makan",
                 "dosis_anak": "Tidak dianjurkan untuk anak <1 tahun",
                 "efek_samping": "Sakit kepala, diare, mual, pusing",
@@ -66,12 +66,12 @@ class EnhancedPharmaAssistant:
                 "interaksi": "Mengurangi absorpsi ketoconazole, itraconazole", 
                 "merek_dagang": "Losec, Omepron, Gastruz",
                 "kategori": "lambung, maag, gerd, asam",
-                "gejala": "maag, asam lambung, nyeri ulu hati, heartburn, perut kembung"
+                "gejala": "maag, asam lambung, nyeri ulu hati, heartburn, perut kembung, mual"
             },
             "ibuprofen": {
                 "nama": "Ibuprofen",
                 "golongan": "Anti-inflamasi nonsteroid (NSAID)",
-                "indikasi": "Nyeri, inflamasi, demam, arthritis, dismenore, sakit kepala, migrain, nyeri otot",
+                "indikasi": "Nyeri, inflamasi, demam, arthritis, dismenore, sakit kepala, migrain, nyeri otot, nyeri sendi",
                 "dosis_dewasa": "200-400 mg setiap 4-6 jam, maksimal 1200 mg/hari",
                 "dosis_anak": "5-10 mg/kgBB setiap 6-8 jam",
                 "efek_samping": "Gangguan lambung, pusing, ruam kulit, tinitus",
@@ -79,12 +79,12 @@ class EnhancedPharmaAssistant:
                 "interaksi": "Meningkatkan risiko perdarahan dengan antikoagulan",
                 "merek_dagang": "Proris, Arthrifen, Ibufar",
                 "kategori": "antiinflamasi, nyeri, demam, radang",
-                "gejala": "sakit kepala, migrain, nyeri, demam, radang, kram haid, nyeri sendi"
+                "gejala": "sakit kepala, migrain, nyeri, demam, radang, kram haid, nyeri sendi, pegal"
             },
             "vitamin_c": {
                 "nama": "Vitamin C",
                 "golongan": "Vitamin dan Suplemen",
-                "indikasi": "Suplementasi vitamin C, meningkatkan daya tahan tubuh, penyembuhan luka, sariawan",
+                "indikasi": "Suplementasi vitamin C, meningkatkan daya tahan tubuh, penyembuhan luka, sariawan, flu",
                 "dosis_dewasa": "500-1000 mg per hari",
                 "dosis_anak": "sesuai kebutuhan, konsultasi dokter",
                 "efek_samping": "Diare pada dosis tinggi, gangguan pencernaan",
@@ -92,12 +92,12 @@ class EnhancedPharmaAssistant:
                 "interaksi": "Dapat mempengaruhi efektivitas beberapa obat kemoterapi",
                 "merek_dagang": "Redoxon, Enervon C, Holisticare Ester C",
                 "kategori": "vitamin, suplemen, imunitas",
-                "gejala": "daya tahan tubuh lemah, sariawan, pemulihan sakit, lelah"
+                "gejala": "daya tahan tubuh lemah, sariawan, pemulihan sakit, lelah, flu"
             },
             "loratadine": {
                 "nama": "Loratadine",
                 "golongan": "Antihistamin Generasi Kedua",
-                "indikasi": "Rinitis alergi, urtikaria, alergi kulit, biduran, gatal-gatal, bersin-bersin",
+                "indikasi": "Rinitis alergi, urtikaria, alergi kulit, biduran, gatal-gatal, bersin-bersin, rhinitis",
                 "dosis_dewasa": "10 mg sekali sehari",
                 "dosis_anak": "5 mg sekali sehari (usia 6-12 tahun)",
                 "efek_samping": "Mengantuk (jarang), sakit kepala, mulut kering",
@@ -105,12 +105,12 @@ class EnhancedPharmaAssistant:
                 "interaksi": "Erythromycin, ketoconazole dapat meningkatkan kadar loratadine",
                 "merek_dagang": "Clarityne, Loramine, Allertine",
                 "kategori": "alergi, antihistamin, gatal",
-                "gejala": "alergi, gatal, bersin, pilek alergi, biduran, ruam kulit"
+                "gejala": "alergi, gatal, bersin, pilek alergi, biduran, ruam kulit, hidung tersumbat"
             },
             "simvastatin": {
                 "nama": "Simvastatin",
                 "golongan": "Statin (Penurun Kolesterol)",
-                "indikasi": "Hiperkolesterolemia, pencegahan penyakit kardiovaskular, kolesterol tinggi",
+                "indikasi": "Hiperkolesterolemia, pencegahan penyakit kardiovaskular, kolesterol tinggi, trigliserida tinggi",
                 "dosis_dewasa": "10-40 mg sekali sehari malam hari",
                 "dosis_anak": "Tidak dianjurkan untuk anak",
                 "efek_samping": "Nyeri otot, gangguan hati, sakit kepala",
@@ -123,62 +123,38 @@ class EnhancedPharmaAssistant:
         }
     
     def _calculate_similarity_score(self, query, drug_info):
-        """Enhanced semantic similarity scoring dengan symptom mapping"""
+        """Enhanced semantic similarity scoring dengan symptom mapping yang lebih baik"""
         query = query.lower()
         score = 0
         
-        # 1. Symptom-to-indication mapping (HIGH PRIORITY)
-        symptom_mapping = {
-            'sakit kepala': ['nyeri', 'demam', 'sakit kepala', 'pusing', 'migrain'],
-            'demam': ['demam', 'panas', 'suhu tinggi'],
-            'pilek': ['rinitis', 'alergi', 'pilek', 'bersin', 'hidung tersumbat'],
-            'batuk': ['batuk', 'infeksi', 'saluran napas', 'tenggorokan'],
-            'maag': ['lambung', 'gerd', 'dispepsia', 'maag', 'asam lambung'],
-            'alergi': ['alergi', 'urtikaria', 'gatal', 'ruam', 'biduran'],
-            'kolesterol': ['kolesterol', 'hiperkolesterolemia'],
-            'radang': ['inflamasi', 'radang', 'arthritis', 'pembengkakan'],
-            'nyeri': ['nyeri', 'sakit', 'ngilu', 'pegal'],
-            'mual': ['mual', 'muntah', 'pusing']
-        }
-        
-        # Check symptom matches
-        for symptom, keywords in symptom_mapping.items():
-            if symptom in query:
-                # Check if drug is indicated for this symptom
-                indication_lower = drug_info['indikasi'].lower()
-                if any(keyword in indication_lower for keyword in keywords):
-                    score += 4  # High score for symptom-indication match
-                    break
-        
-        # 2. Direct drug name match (HIGHEST PRIORITY)
-        if drug_info['nama'].lower() in query:
-            score += 5
-            
-        # 3. Brand name match
-        for merek in drug_info['merek_dagang'].lower().split(', '):
-            if merek in query:
-                score += 3
-        
-        # 4. Category matching dengan expansion
-        categories = drug_info.get('kategori', '').lower().split(', ')
-        for category in categories:
-            if category in query:
-                score += 2
-        
-        # 5. Direct indication keyword matching
-        indication_keywords = drug_info['indikasi'].lower().replace(',', '').split()
-        for keyword in indication_keywords:
-            if len(keyword) > 3 and keyword in query:
-                score += 2
-        
-        # 6. Specific symptom field matching
+        # 1. Direct symptom matching (HIGHEST PRIORITY)
         if 'gejala' in drug_info:
             symptoms = drug_info['gejala'].lower().split(', ')
             for symptom in symptoms:
-                if symptom in query:
-                    score += 3
+                if symptom.strip() in query:
+                    score += 5  # Very high score for direct symptom match
         
-        # 7. Specific question type matching
+        # 2. Direct drug name match
+        if drug_info['nama'].lower() in query:
+            score += 5
+            
+        # 3. Indication keyword matching
+        indication_lower = drug_info['indikasi'].lower()
+        if any(keyword in query for keyword in indication_lower.split(', ')):
+            score += 3
+        
+        # 4. Brand name match
+        for merek in drug_info['merek_dagang'].lower().split(', '):
+            if merek.strip() in query:
+                score += 3
+        
+        # 5. Category matching
+        categories = drug_info.get('kategori', '').lower().split(', ')
+        for category in categories:
+            if category.strip() in query:
+                score += 2
+        
+        # 6. Specific question type matching
         question_types = {
             'dosis': ['dosis', 'berapa', 'takaran', 'dosis'],
             'efek_samping': ['efek samping', 'efek', 'samping', 'bahaya'],
@@ -195,8 +171,8 @@ class EnhancedPharmaAssistant:
         
         return score
     
-    def _fallback_symptom_search(self, query, top_k=2):
-        """Fallback search untuk query gejala yang tidak ketemu exact match"""
+    def _fallback_symptom_search(self, query, top_k=3):
+        """Enhanced fallback search untuk query gejala"""
         symptom_drug_mapping = {
             'sakit kepala': ['paracetamol', 'ibuprofen'],
             'pusing': ['paracetamol'],
@@ -218,7 +194,10 @@ class EnhancedPharmaAssistant:
             'bakteri': ['amoxicillin'],
             'vitamin': ['vitamin_c'],
             'imun': ['vitamin_c'],
-            'daya tahan': ['vitamin_c']
+            'daya tahan': ['vitamin_c'],
+            'flu': ['vitamin_c'],
+            'migrain': ['paracetamol', 'ibuprofen'],
+            'pegal': ['paracetamol', 'ibuprofen']
         }
         
         results = []
@@ -231,7 +210,7 @@ class EnhancedPharmaAssistant:
                         # Cek agar tidak duplicate
                         if not any(r['drug_id'] == drug_id for r in results):
                             results.append({
-                                'score': 3,  # Good score for symptom match
+                                'score': 4,  # Good score for symptom match
                                 'drug_info': self.drugs_db[drug_id],
                                 'drug_id': drug_id
                             })
@@ -242,11 +221,17 @@ class EnhancedPharmaAssistant:
         """Enhanced semantic search dengan symptom understanding dan fallback"""
         results = []
         
+        # DEBUG: Tampilkan query
+        # st.write(f"🔍 DEBUG: Searching for: '{query}'")
+        
         for drug_id, drug_info in self.drugs_db.items():
             score = self._calculate_similarity_score(query, drug_info)
             
-            # Lower threshold untuk menangkap gejala
-            if score >= 1:
+            # DEBUG: Tampilkan score untuk setiap obat
+            # if score > 0:
+            #     st.write(f"🔍 DEBUG: {drug_info['nama']} - Score: {score}")
+            
+            if score > 0:
                 results.append({
                     'score': score,
                     'drug_info': drug_info,
@@ -256,6 +241,9 @@ class EnhancedPharmaAssistant:
         # FALLBACK: Jika tidak ada hasil, cari berdasarkan gejala
         if not results:
             results = self._fallback_symptom_search(query, top_k)
+            # DEBUG: Tampilkan fallback results
+            # if results:
+            #     st.write(f"🔍 DEBUG: Fallback found {len(results)} drugs")
         
         # Sort by score and return top_k
         results.sort(key=lambda x: x['score'], reverse=True)
@@ -309,6 +297,7 @@ class EnhancedPharmaAssistant:
             - EFEK SAMPING: {drug['efek_samping']}
             - KONTRAINDIKASI: {drug['kontraindikasi']}
             - INTERAKSI: {drug['interaksi']}
+            - GEJALA: {drug.get('gejala', 'Tidak tersedia')}
             """
         
         # Add conversation context
@@ -377,7 +366,7 @@ class EnhancedPharmaAssistant:
         
         # Check if this is a symptom-based question
         is_symptom_question = any(symptom in question_lower for symptom in 
-                                ['sakit kepala', 'demam', 'pilek', 'alergi', 'maag', 'nyeri', 'kolesterol'])
+                                ['sakit kepala', 'demam', 'pilek', 'alergi', 'maag', 'nyeri', 'kolesterol', 'pusing', 'panas'])
         
         if is_symptom_question:
             answer_parts.append(f"**Untuk gejala '{question}':**")
@@ -389,6 +378,8 @@ class EnhancedPharmaAssistant:
                 drug_answer = [f"**💊 {drug['nama']}**"]
                 drug_answer.append(f"• **Indikasi:** {drug['indikasi']}")
                 drug_answer.append(f"• **Dosis Dewasa:** {drug['dosis_dewasa']}")
+                if 'gejala' in drug:
+                    drug_answer.append(f"• **Gejala Terkait:** {drug['gejala']}")
             else:
                 drug_answer = [f"**{drug['nama']}** ({drug['merek_dagang']})"]
             
@@ -532,7 +523,7 @@ with tab1:
                 if sources:
                     st.write("**Algoritma:** Semantic search dengan symptom mapping")
             
-            # Medical disclaimer - DITAMBAHKAN DI SINI
+            # Medical disclaimer
             st.error("""
             ⚠️ **PERINGATAN MEDIS:** 
             Informasi ini untuk edukasi dan referensi saja. 
