@@ -8,7 +8,7 @@ import re
 
 # Konfigurasi halaman
 st.set_page_config(
-    page_title="AI-PharmaAssist BPJS - Chatbot",
+    page_title="Implementasi Retrieval-Augmented Generation (RAG) untuk Sistem Tanya Jawab Informasi Obat Berbasis Conversational AI",
     page_icon="💊",
     layout="wide"
 )
@@ -492,7 +492,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header
-st.title("💊 AI-PharmaAssist BPJS - Smart Chatbot")
+st.title("💊Implementasi Retrieval-Augmented Generation (RAG) untuk Sistem Tanya Jawab Informasi Obat Berbasis Conversational AI")
 st.markdown("**Chatbot dengan Context Awareness yang Lebih Baik**")
 
 # Sidebar untuk debug info
