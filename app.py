@@ -1,12 +1,25 @@
-import google.generativeai as genai
+import streamlit as st
 import pandas as pd
+import google.generativeai as genai
 import numpy as np
 from datetime import datetime
 import hashlib
 
-# Setup Gemini API
-GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"] genai.configure(api_key=GEMINI_API_KEY) gemini_available = True
+# Konfigurasi halaman
+st.set_page_config(
+    page_title="AI-PharmaAssist BPJS - Enhanced RAG",
+    page_icon="💊",
+    layout="wide"
+)
 
+# Setup Gemini API - DENGAN KEAMANAN
+try:
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=GEMINI_API_KEY)
+    gemini_available = True
+except Exception as e:
+    st.error(f"❌ Error konfigurasi Gemini API: {str(e)}")
+    gemini_available = False
 
 class EnhancedPharmaAssistant:
     def __init__(self):
@@ -139,6 +152,13 @@ class EnhancedPharmaAssistant:
             if merek_clean and merek_clean in query:
                 score += 3
         
+        # 5. Category matching
+        categories = drug_info.get('kategori', '').lower().split(',')
+        for category in categories:
+            category_clean = category.strip()
+            if category_clean and category_clean in query:
+                score += 2
+        
         return score
     
     def _fallback_symptom_search(self, query, top_k=2):
@@ -192,6 +212,31 @@ class EnhancedPharmaAssistant:
         results.sort(key=lambda x: x['score'], reverse=True)
         return [result['drug_info'] for result in results[:top_k]]
     
+    def add_to_conversation_history(self, question, answer, sources):
+        """Add interaction to conversation history"""
+        self.conversation_history.append({
+            'timestamp': datetime.now(),
+            'question': question,
+            'answer': answer,
+            'sources': [drug['nama'] for drug in sources],
+            'session_id': hashlib.md5(str(datetime.now().date()).encode()).hexdigest()[:8]
+        })
+        
+        # Keep only last 20 conversations
+        if len(self.conversation_history) > 20:
+            self.conversation_history.pop(0)
+    
+    def get_conversation_context(self):
+        """Get recent conversation context for better continuity"""
+        if len(self.conversation_history) < 2:
+            return ""
+        
+        recent_conv = self.conversation_history[-2:]  # Get last 2 exchanges
+        context = "Percakapan sebelumnya:\n"
+        for conv in recent_conv:
+            context += f"Q: {conv['question']}\nA: {conv['answer'][:100]}...\n"
+        return context
+    
     def ask_question(self, question):
         """Enhanced RAG dengan Gemini"""
         # Semantic search for relevant drugs
@@ -219,38 +264,42 @@ class EnhancedPharmaAssistant:
             """
         
         try:
-            model = genai.GenerativeModel('gemini-2.0-flash')
-            
-            prompt = f"""
-            Anda adalah asisten farmasi BPJS Kesehatan yang profesional.
-            
-            INFORMASI OBAT YANG TERSEDIA:
-            {context}
-            
-            PERTANYAAN PASIEN: {question}
-            
-            INSTRUKSI:
-            1. Jawab pertanyaan dengan AKURAT berdasarkan informasi obat di atas
-            2. Gunakan bahasa Indonesia yang JELAS dan mudah dipahami
-            3. Jika informasi tidak tersedia, jangan membuat-buat jawaban
-            4. Sertakan nama obat yang relevan dalam jawaban
-            5. Tetap singkat namun informatif
-            
-            JAWABAN:
-            """
-            
-            response = model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.1,
-                    max_output_tokens=800,
-                    top_p=0.8
+            if gemini_available:
+                model = genai.GenerativeModel('gemini-2.0-flash')
+                
+                prompt = f"""
+                Anda adalah asisten farmasi BPJS Kesehatan yang profesional.
+                
+                INFORMASI OBAT YANG TERSEDIA:
+                {context}
+                
+                PERTANYAAN PASIEN: {question}
+                
+                INSTRUKSI:
+                1. Jawab pertanyaan dengan AKURAT berdasarkan informasi obat di atas
+                2. Gunakan bahasa Indonesia yang JELAS dan mudah dipahami
+                3. Jika informasi tidak tersedia, jangan membuat-buat jawaban
+                4. Sertakan nama obat yang relevan dalam jawaban
+                5. Tetap singkat namun informatif
+                
+                JAWABAN:
+                """
+                
+                response = model.generate_content(
+                    prompt,
+                    generation_config=genai.types.GenerationConfig(
+                        temperature=0.1,
+                        max_output_tokens=800,
+                        top_p=0.8
+                    )
                 )
-            )
-            return response.text, relevant_drugs
+                return response.text, relevant_drugs
+            else:
+                # Fallback to manual answer
+                return self._generate_manual_answer(question, relevant_drugs), relevant_drugs
             
         except Exception as e:
-            print(f"⚠️ Gemini API Error: {e}")
+            st.error(f"⚠️ Gemini API Error: {e}")
             # Fallback to manual answer
             return self._generate_manual_answer(question, relevant_drugs), relevant_drugs
     
@@ -264,3 +313,231 @@ class EnhancedPharmaAssistant:
             answer_parts.append(f"• Dosis: {drug['dosis_dewasa']}")
         
         return "\n".join(answer_parts)
+
+# Initialize enhanced assistant
+@st.cache_resource
+def load_assistant():
+    return EnhancedPharmaAssistant()
+
+assistant = load_assistant()
+
+# Enhanced UI Components
+st.title("💊 AI-PharmaAssist BPJS Kesehatan - Enhanced RAG")
+st.markdown("**Sistem Tanya Jawab Informasi Obat Berbasis Conversational AI dengan RAG**")
+st.markdown("---")
+
+# Sidebar dengan informasi enhanced
+with st.sidebar:
+    st.header("⚙️ Tentang Enhanced RAG")
+    st.info("""
+    **🤖 Enhanced RAG Features:**
+    • Semantic Search dengan Symptom Mapping
+    • Conversation Memory
+    • Expanded Drug Database (7+ obat)
+    • Context-Aware Responses
+    • Fallback Mechanisms
+    • Symptom-to-Drug Matching
+    
+    **💊 Database:** 7+ obat umum dengan gejala
+    """)
+    
+    st.markdown("---")
+    st.subheader("🔧 System Status")
+    if gemini_available:
+        st.success("✅ Gemini 2.0 Flash: Connected")
+    else:
+        st.warning("⚠️ Gemini: Using Fallback Mode")
+    st.metric("Jumlah Obat", len(assistant.drugs_db))
+    st.metric("Percakapan Tersimpan", len(assistant.conversation_history))
+    
+    st.markdown("---")
+    st.subheader("💊 Daftar Obat Tersedia")
+    for drug_id, drug_info in assistant.drugs_db.items():
+        with st.expander(f"📦 {drug_info['nama']}"):
+            st.caption(f"Golongan: {drug_info['golongan']}")
+            st.caption(f"Indikasi: {drug_info['indikasi'][:50]}...")
+            if 'gejala' in drug_info:
+                st.caption(f"Gejala: {drug_info['gejala'][:50]}...")
+
+# Main Interface dengan tabs enhanced
+tab1, tab2, tab3, tab4 = st.tabs(["🔍 Tanya Obat", "📊 Data Obat", "💬 Riwayat", "🎯 Demo Cepat"])
+
+with tab1:
+    st.subheader("Tanya Informasi Obat - Enhanced RAG")
+    
+    # Conversation starter
+    if not assistant.conversation_history:
+        st.info("""
+        💡 **Tips:** Anda bisa menanyakan:
+        • **Gejala:** "obat sakit kepala", "obat demam", "obat maag"
+        • **Informasi obat:** "dosis paracetamol", "efek samping amoxicillin"
+        • **Kondisi khusus:** "bolehkah ibu hamil minum obat alergi?"
+        """)
+    
+    question = st.text_area(
+        "Masukkan pertanyaan tentang obat:",
+        placeholder="Contoh: Obat untuk sakit kepala? Apa dosis amoxicillin? Bolehkah ibu hamil minum obat alergi? Interaksi simvastatin dengan apa saja?",
+        height=100
+    )
+    
+    col1, col2, col3 = st.columns([1, 1, 2])
+    
+    with col1:
+        ask_btn = st.button("🎯 Tanya AI", type="primary", use_container_width=True)
+    
+    with col2:
+        if st.button("🔄 Clear Chat", use_container_width=True):
+            assistant.conversation_history.clear()
+            st.rerun()
+    
+    if ask_btn and question:
+        with st.spinner("🔍 Mencari informasi dengan Enhanced RAG..."):
+            answer, sources = assistant.ask_question(question)
+            
+            # Display results
+            st.success("💡 **Informasi Obat:**")
+            st.write(answer)
+            
+            if sources:
+                with st.expander("📚 Sumber Informasi & Relevansi"):
+                    for drug in sources:
+                        st.write(f"• **{drug['nama']}** - {drug['golongan']}")
+                        st.caption(f"Indikasi: {drug['indikasi']}")
+                        if 'gejala' in drug:
+                            st.caption(f"Gejala terkait: {drug['gejala']}")
+            
+            # Medical disclaimer
+            st.error("""
+            ⚠️ **PERINGATAN MEDIS:** 
+            Informasi ini untuk edukasi dan referensi saja. 
+            **Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat.**
+            Jangan mengganti atau menghentikan pengobatan tanpa konsultasi profesional.
+            """)
+
+with tab2:
+    st.subheader("📊 Enhanced Drug Database")
+    
+    # Search and filter
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        search_term = st.text_input("🔍 Cari obat:", placeholder="Nama obat, golongan, gejala, atau indikasi...")
+    
+    with col2:
+        filter_category = st.selectbox("Filter Kategori:", ["Semua", "Analgesik", "Antibiotik", "Vitamin", "Antihistamin", "Statin", "PPI", "NSAID"])
+    
+    # Display filtered drugs
+    filtered_drugs = []
+    for drug_id, drug_info in assistant.drugs_db.items():
+        match = False
+        if search_term:
+            search_lower = search_term.lower()
+            if (search_lower in drug_info['nama'].lower() or 
+                search_lower in drug_info['golongan'].lower() or
+                search_lower in drug_info['indikasi'].lower() or
+                ('gejala' in drug_info and search_lower in drug_info['gejala'].lower())):
+                match = True
+        elif filter_category != "Semua":
+            if filter_category.lower() in drug_info['golongan'].lower():
+                match = True
+        else:
+            match = True
+        
+        if match:
+            filtered_drugs.append(drug_info)
+    
+    # Display as dataframe
+    if filtered_drugs:
+        drugs_df = pd.DataFrame([{
+            "Nama Obat": drug["nama"],
+            "Golongan": drug["golongan"],
+            "Indikasi": drug["indikasi"][:80] + "..." if len(drug["indikasi"]) > 80 else drug["indikasi"],
+            "Merek Dagang": drug["merek_dagang"],
+            "Gejala Terkait": drug.get("gejala", "Tidak tersedia")[:60] + "..." if drug.get("gejala") and len(drug.get("gejala", "")) > 60 else drug.get("gejala", "Tidak tersedia")
+        } for drug in filtered_drugs])
+        
+        st.dataframe(drugs_df, use_container_width=True, hide_index=True)
+    else:
+        st.warning("Tidak ada obat yang sesuai dengan filter.")
+    
+    # Medical disclaimer untuk tab Data Obat
+    st.error("""
+    ⚠️ **PERINGATAN MEDIS:** 
+    Informasi ini untuk edukasi dan referensi saja. 
+    **Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat.**
+    Jangan mengganti atau menghentikan pengobatan tanpa konsultasi profesional.
+    """)
+
+with tab3:
+    st.subheader("💬 Riwayat Percakapan")
+    
+    if assistant.conversation_history:
+        for i, conv in enumerate(reversed(assistant.conversation_history)):
+            with st.expander(f"🕒 {conv['timestamp'].strftime('%H:%M:%S')} - {conv['question'][:50]}..."):
+                st.write(f"**Q:** {conv['question']}")
+                st.write(f"**A:** {conv['answer']}")
+                st.caption(f"Sumber: {', '.join(conv['sources'])}")
+    else:
+        st.info("Belum ada riwayat percakapan. Mulai tanya obat di tab 'Tanya Obat'.")
+    
+    # Medical disclaimer untuk tab Riwayat
+    st.error("""
+    ⚠️ **PERINGATAN MEDIS:** 
+    Informasi ini untuk edukasi dan referensi saja. 
+    **Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat.**
+    Jangan mengganti atau menghentikan pengobatan tanpa konsultasi profesional.
+    """)
+
+with tab4:
+    st.subheader("🎯 Demo Cepat - Enhanced")
+    st.markdown("Coba pertanyaan-pertanyaan berikut untuk testing Enhanced RAG:")
+    
+    demo_questions = [
+        "Obat untuk sakit kepala?",
+        "Apa dosis amoxicillin untuk infeksi telinga?",
+        "Efek samping simvastatin yang serius?",
+        "Bolehkah ibu hamil minum loratadine untuk alergi?",
+        "Interaksi omeprazole dengan obat lain?",
+        "Apa perbedaan paracetamol dan ibuprofen?",
+        "Dosis vitamin C untuk daya tahan tubuh?",
+        "Obat apa yang cocok untuk kolesterol tinggi?",
+        "Obat untuk demam dan pilek?"
+    ]
+    
+    cols = st.columns(2)
+    for i, q in enumerate(demo_questions):
+        with cols[i % 2]:
+            if st.button(q, key=f"demo_{i}", use_container_width=True):
+                st.session_state.demo_question = q
+                st.rerun()
+
+# Handle demo questions
+if 'demo_question' in st.session_state:
+    question = st.session_state.demo_question
+    with st.spinner(f"🔍 Memproses dengan Enhanced RAG: {question}"):
+        answer, sources = assistant.ask_question(question)
+        st.success("💡 **Informasi Obat:**")
+        st.write(answer)
+        
+        if sources:
+            with st.expander("📚 Sumber Informasi"):
+                for drug in sources:
+                    st.write(f"• **{drug['nama']}** - {drug['golongan']}")
+        
+        # Medical disclaimer untuk demo questions
+        st.error("""
+        ⚠️ **PERINGATAN MEDIS:** 
+        Informasi ini untuk edukasi dan referensi saja. 
+        **Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat.**
+        Jangan mengganti atau menghentikan pengobatan tanpa konsultasi profesional.
+        """)
+
+# Enhanced Footer
+st.markdown("---")
+st.markdown(
+    "<div style='text-align: center'>"
+    "💊 <b>AI-PharmaAssist Enhanced RAG</b> - Healthkathon 2025 | "
+    "Powered by <b>Gemini 2.0 Flash</b> | "
+    "Enhanced Semantic Search & Symptom Mapping"
+    "</div>", 
+    unsafe_allow_html=True
+)
