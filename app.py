@@ -502,14 +502,14 @@ st.markdown("**Silahkan Masukkan Pertanyaan anda tentang obat**")
 # Layout utama - full width
 st.markdown("### 💬 Percakapan")
 
-# # Quick questions untuk testing context
-# st.markdown("**Pertanyaan Cepat:**")
+# Quick questions untuk testing context
+st.markdown("**Pertanyaan Cepat:**")
 
-# test_scenarios = [
-#     "Dosis amoxicillin?",
-#     "Apa Obat Sakit Kepala?",
-#     "Efek samping Paracetamol?"
-# ]
+test_scenarios = [
+    "Dosis amoxicillin?",
+    "Apa Obat Sakit Kepala?",
+    "Efek samping Paracetamol?"
+]
 
 cols = st.columns(3)
 for i, scenario in enumerate(test_scenarios):
