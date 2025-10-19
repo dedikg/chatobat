@@ -25,6 +25,7 @@ except Exception as e:
 class EnhancedPharmaAssistant:
     def __init__(self):
         self.drugs_db = self._initialize_drug_database()
+        self.current_context = {}  # Untuk menyimpan konteks percakapan saat ini
         
     def _initialize_drug_database(self):
         """Initialize expanded drug database dengan gejala yang benar"""
@@ -123,59 +124,95 @@ class EnhancedPharmaAssistant:
         }
         return drugs_db
     
-    def _extract_drug_from_context(self, query):
-        """Extract drug name from conversation context"""
-        if not st.session_state.get('conversation_history'):
-            return None
-            
-        # Ambil percakapan terakhir
-        last_conversations = st.session_state.conversation_history[-3:]  # 3 pesan terakhir
+    def _update_conversation_context(self, question, answer, sources):
+        """Update conversation context berdasarkan interaksi terakhir"""
+        question_lower = question.lower()
         
-        # Cari referensi obat dalam percakapan sebelumnya
-        drug_keywords = list(self.drugs_db.keys()) + [drug['nama'].lower() for drug in self.drugs_db.values()]
+        # Deteksi obat yang sedang dibicarakan
+        detected_drug = None
+        for drug_id, drug_info in self.drugs_db.items():
+            if (drug_info['nama'].lower() in question_lower or 
+                any(merek.lower() in question_lower for merek in drug_info['merek_dagang'].split(','))):
+                detected_drug = drug_id
+                break
         
-        for conv in reversed(last_conversations):
-            # Cek di pertanyaan
-            question_lower = conv['question'].lower()
-            for drug_key in drug_keywords:
-                if drug_key in question_lower:
-                    return drug_key
-            
-            # Cek di jawaban (sources)
-            if 'sources' in conv and conv['sources']:
-                return conv['sources'][0].lower()
+        # Jika tidak terdeteksi langsung, cari dari sources
+        if not detected_drug and sources:
+            for drug in sources:
+                for drug_id, drug_info in self.drugs_db.items():
+                    if drug_info['nama'] == drug['nama']:
+                        detected_drug = drug_id
+                        break
         
-        return None
+        # Update context
+        if detected_drug:
+            self.current_context = {
+                'current_drug': detected_drug,
+                'last_question': question,
+                'last_answer': answer,
+                'timestamp': datetime.now()
+            }
+            st.sidebar.success(f"🔄 CONTEXT UPDATED: {detected_drug}")
+        else:
+            # Jika tidak ada drug yang terdeteksi, clear context setelah beberapa percakapan
+            if self.current_context and len(st.session_state.conversation_history) > 3:
+                self.current_context = {}
+                st.sidebar.info("🔄 CONTEXT CLEARED")
     
     def _enhance_query_with_context(self, query):
-        """Enhance query dengan konteks percakapan sebelumnya"""
-        enhanced_query = query
+        """Enhance query dengan konteks percakapan yang lebih robust"""
+        query_lower = query.lower()
         
-        # Deteksi pertanyaan lanjutan
-        follow_up_indicators = [
-            'berapa', 'bagaimana', 'apa', 'bolehkah', 'bisa', 'untuk', 'dewas', 'anak',
-            'dosis', 'efek', 'samping', 'kontra', 'interaksi', 'indikasi'
-        ]
-        
-        is_follow_up = any(indicator in query.lower() for indicator in follow_up_indicators)
-        
-        if is_follow_up and st.session_state.get('conversation_history'):
-            # Cari obat dari konteks sebelumnya
-            context_drug = self._extract_drug_from_context(query)
+        # Jika ada context drug yang aktif
+        if self.current_context and 'current_drug' in self.current_context:
+            current_drug = self.current_context['current_drug']
+            drug_info = self.drugs_db.get(current_drug)
             
-            if context_drug:
-                # Jika ditemukan obat dari konteks, tambahkan ke query
-                enhanced_query = f"{query} {context_drug}"
-                st.sidebar.write(f"🔍 CONTEXT: Enhanced query '{query}' -> '{enhanced_query}'")
+            if drug_info:
+                # Deteksi tipe pertanyaan lanjutan
+                is_follow_up = any(keyword in query_lower for keyword in [
+                    'berapa', 'bagaimana', 'apa', 'untuk', 'dewas', 'anak', 'dosis', 
+                    'efek', 'samping', 'kontra', 'interaksi', 'indikasi', 'guna'
+                ])
+                
+                if is_follow_up:
+                    enhanced_query = f"{query} {drug_info['nama']}"
+                    st.sidebar.write(f"🎯 ENHANCED: '{query}' -> '{enhanced_query}'")
+                    return enhanced_query
         
-        return enhanced_query
+        # Jika tidak ada context, coba extract dari query langsung
+        for drug_id, drug_info in self.drugs_db.items():
+            if (drug_info['nama'].lower() in query_lower or 
+                any(merek.lower() in query_lower for merek in drug_info['merek_dagang'].split(','))):
+                return query  # Query sudah mengandung drug name
+        
+        # Jika query sangat pendek (pertanyaan lanjutan), coba gunakan context terakhir
+        if len(query.split()) <= 3 and self.current_context and 'current_drug' in self.current_context:
+            current_drug = self.current_context['current_drug']
+            drug_info = self.drugs_db.get(current_drug)
+            if drug_info:
+                enhanced_query = f"{query} {drug_info['nama']}"
+                st.sidebar.write(f"🎯 SHORT QUERY ENHANCED: '{query}' -> '{enhanced_query}'")
+                return enhanced_query
+        
+        return query
     
     def _calculate_similarity_score(self, query, drug_info):
-        """Enhanced semantic similarity scoring dengan symptom mapping"""
+        """Enhanced semantic similarity scoring dengan context awareness"""
         query = query.lower()
         score = 0
         
-        # 1. Direct symptom matching (HIGHEST PRIORITY)
+        # 1. Direct drug name match (HIGHEST PRIORITY)
+        if drug_info['nama'].lower() in query:
+            score += 10
+        
+        # 2. Brand name match
+        for merek in drug_info['merek_dagang'].lower().split(','):
+            merek_clean = merek.strip()
+            if merek_clean and merek_clean in query:
+                score += 8
+        
+        # 3. Direct symptom matching
         if 'gejala' in drug_info and drug_info['gejala']:
             symptoms = drug_info['gejala'].lower().split(',')
             for symptom in symptoms:
@@ -183,21 +220,11 @@ class EnhancedPharmaAssistant:
                 if symptom_clean and symptom_clean in query:
                     score += 5
         
-        # 2. Direct drug name match
-        if drug_info['nama'].lower() in query:
-            score += 5
-            
-        # 3. Indication keyword matching
+        # 4. Indication keyword matching
         indication_lower = drug_info['indikasi'].lower()
         indication_keywords = [kw.strip() for kw in indication_lower.split(',')]
         for keyword in indication_keywords:
             if keyword and keyword in query:
-                score += 3
-        
-        # 4. Brand name match
-        for merek in drug_info['merek_dagang'].lower().split(','):
-            merek_clean = merek.strip()
-            if merek_clean and merek_clean in query:
                 score += 3
         
         # 5. Category matching
@@ -210,72 +237,39 @@ class EnhancedPharmaAssistant:
         
         # 6. Contextual matching untuk pertanyaan lanjutan
         follow_up_keywords = {
-            'dosis': ['dosis', 'berapa', 'takaran', 'aturan pakai'],
-            'efek': ['efek samping', 'side effect', 'bahaya'],
-            'kontraindikasi': ['kontra', 'tidak boleh', 'hindari', 'larangan'],
-            'interaksi': ['interaksi', 'bereaksi dengan', 'makanan', 'minuman'],
-            'indikasi': ['untuk apa', 'kegunaan', 'manfaat']
+            'dosis': ['dosis', 'berapa', 'takaran', 'aturan pakai', 'dosis untuk'],
+            'efek': ['efek samping', 'side effect', 'bahaya', 'efeknya'],
+            'kontraindikasi': ['kontra', 'tidak boleh', 'hindari', 'larangan', 'kontraindikasi'],
+            'interaksi': ['interaksi', 'bereaksi dengan', 'makanan', 'minuman', 'interaksinya'],
+            'indikasi': ['untuk apa', 'kegunaan', 'manfaat', 'indikasi', 'guna']
         }
         
         for key, keywords in follow_up_keywords.items():
             if any(kw in query for kw in keywords):
                 # Beri bonus score jika drug_info memiliki field yang relevan
                 if key == 'dosis' and drug_info.get('dosis_dewasa'):
-                    score += 2
+                    score += 4
                 elif key in drug_info and drug_info[key]:
-                    score += 2
+                    score += 4
+        
+        # 7. Bonus untuk current context drug
+        if (self.current_context and 'current_drug' in self.current_context and 
+            drug_info['nama'].lower() == self.current_context['current_drug']):
+            score += 6
+            st.sidebar.write(f"🎯 CONTEXT BONUS: +6 untuk {drug_info['nama']}")
         
         return score
     
-    def _fallback_symptom_search(self, query, top_k=2):
-        """Fallback search untuk query gejala"""
-        symptom_drug_mapping = {
-            'sakit kepala': ['paracetamol', 'ibuprofen'],
-            'pusing': ['paracetamol'],
-            'demam': ['paracetamol', 'ibuprofen'],
-            'panas': ['paracetamol'],
-            'pilek': ['loratadine'],
-            'alergi': ['loratadine'],
-            'maag': ['omeprazole'],
-            'kolesterol': ['simvastatin'],
-            'nyeri': ['paracetamol', 'ibuprofen'],
-            'sakit': ['paracetamol', 'ibuprofen'],
-            'radang': ['ibuprofen'],
-            'infeksi': ['amoxicillin'],
-            'bakteri': ['amoxicillin'],
-            'vitamin': ['vitamin_c'],
-            'imun': ['vitamin_c'],
-            'daya tahan': ['vitamin_c'],
-            'flu': ['vitamin_c'],
-            'migrain': ['paracetamol', 'ibuprofen'],
-            'pegal': ['paracetamol', 'ibuprofen']
-        }
-        
-        results = []
-        query_lower = query.lower()
-        
-        for symptom, drug_ids in symptom_drug_mapping.items():
-            if symptom in query_lower:
-                for drug_id in drug_ids:
-                    if drug_id in self.drugs_db:
-                        # Cek agar tidak duplicate
-                        if not any(r['drug_id'] == drug_id for r in results):
-                            results.append({
-                                'score': 4,
-                                'drug_info': self.drugs_db[drug_id],
-                                'drug_id': drug_id
-                            })
-        
-        return results[:top_k]
-    
     def semantic_search(self, query, top_k=3):
-        """Enhanced semantic search dengan context awareness"""
-        # Enhance query dengan konteks percakapan
+        """Enhanced semantic search dengan robust context handling"""
+        # Enhance query dengan konteks
         enhanced_query = self._enhance_query_with_context(query)
         
         results = []
         
-        st.sidebar.write(f"🎯 SEARCH: '{query}' -> '{enhanced_query}'")
+        st.sidebar.write(f"🔍 SEARCH: '{query}'")
+        if enhanced_query != query:
+            st.sidebar.write(f"🔍 ENHANCED: '{enhanced_query}'")
         
         for drug_id, drug_info in self.drugs_db.items():
             score = self._calculate_similarity_score(enhanced_query, drug_info)
@@ -288,27 +282,52 @@ class EnhancedPharmaAssistant:
                 })
                 st.sidebar.write(f"✅ {drug_info['nama']}: score {score}")
         
-        # FALLBACK: Jika tidak ada hasil, cari berdasarkan gejala
-        if not results:
-            st.sidebar.write("🔄 No direct matches, trying fallback...")
-            results = self._fallback_symptom_search(enhanced_query, top_k)
+        # Jika tidak ada hasil dengan enhanced query, coba dengan original query
+        if not results and enhanced_query != query:
+            st.sidebar.write("🔄 No results with enhanced query, trying original...")
+            for drug_id, drug_info in self.drugs_db.items():
+                score = self._calculate_similarity_score(query, drug_info)
+                
+                if score > 0:
+                    results.append({
+                        'score': score,
+                        'drug_info': drug_info,
+                        'drug_id': drug_id
+                    })
+                    st.sidebar.write(f"✅ {drug_info['nama']}: score {score}")
         
         # Sort by score and return top_k
         results.sort(key=lambda x: x['score'], reverse=True)
         final_drugs = [result['drug_info'] for result in results[:top_k]]
         
-        st.sidebar.write(f"📊 FINAL: {[drug['nama'] for drug in final_drugs]}")
+        st.sidebar.write(f"📊 FINAL RESULTS: {[drug['nama'] for drug in final_drugs]}")
         return final_drugs
     
     def ask_question(self, question):
-        """Enhanced RAG dengan context awareness"""
+        """Enhanced RAG dengan robust context handling"""
         # Semantic search for relevant drugs
         relevant_drugs = self.semantic_search(question)
         
         if not relevant_drugs:
             available_drugs = ", ".join([drug['nama'] for drug in self.drugs_db.values()])
+            
+            # Jika ada context, beri saran berdasarkan context
+            if self.current_context and 'current_drug' in self.current_context:
+                current_drug = self.current_context['current_drug']
+                drug_info = self.drugs_db.get(current_drug)
+                if drug_info:
+                    return f"Maaf, tidak memahami pertanyaan lanjutan tentang {drug_info['nama']}. Coba tanyakan: dosis, efek samping, kontraindikasi, atau interaksi.", []
+            
             return f"Maaf, tidak ditemukan informasi tentang obat tersebut dalam database kami. Coba tanyakan tentang: {available_drugs}.", []
         
+        # Update conversation context
+        answer, sources = self._generate_response(question, relevant_drugs)
+        self._update_conversation_context(question, answer, sources)
+        
+        return answer, sources
+    
+    def _generate_response(self, question, relevant_drugs):
+        """Generate response dengan atau tanpa Gemini"""
         # Prepare enhanced context for Gemini
         context = "INFORMASI OBAT YANG RELEVAN:\n"
         for i, drug in enumerate(relevant_drugs, 1):
@@ -326,8 +345,13 @@ class EnhancedPharmaAssistant:
             - GEJALA: {drug.get('gejala', 'Tidak tersedia')}
             """
         
-        # Tambahkan konteks percakapan sebelumnya
-        conversation_context = self._get_conversation_context()
+        # Tambahkan konteks percakapan
+        conversation_context = ""
+        if self.current_context and 'current_drug' in self.current_context:
+            current_drug = self.current_context['current_drug']
+            drug_info = self.drugs_db.get(current_drug)
+            if drug_info:
+                conversation_context = f"\nKONTEKS: Sedang membahas tentang {drug_info['nama']}\n"
         
         try:
             if gemini_available:
@@ -348,8 +372,8 @@ class EnhancedPharmaAssistant:
                 2. Gunakan bahasa Indonesia yang JELAS dan mudah dipahami
                 3. Jika informasi tidak tersedia, jangan membuat-buat jawaban
                 4. Sertakan nama obat yang relevan dalam jawaban
-                5. Tetap singkat namun informatif
-                6. Perhatikan konteks percakapan sebelumnya
+                5. Perhatikan konteks percakapan jika ada
+                6. Untuk pertanyaan lanjutan yang pendek, tetap berikan jawaban lengkap
                 
                 JAWABAN:
                 """
@@ -372,47 +396,39 @@ class EnhancedPharmaAssistant:
             # Fallback to manual answer
             return self._generate_manual_answer(question, relevant_drugs), relevant_drugs
     
-    def _get_conversation_context(self):
-        """Get recent conversation context"""
-        if not st.session_state.get('conversation_history'):
-            return ""
-        
-        recent_conv = st.session_state.conversation_history[-2:]  # 2 pesan terakhir
-        
-        context = "KONTEKS PERCAKAPAN SEBELUMNYA:\n"
-        for conv in recent_conv:
-            context += f"Pasien: {conv['question']}\n"
-            context += f"Asisten: {conv['answer'][:150]}...\n"
-        
-        return context
-    
     def _generate_manual_answer(self, question, drugs):
         """Manual answer fallback dengan context awareness"""
+        question_lower = question.lower()
         answer_parts = []
         
-        # Deteksi tipe pertanyaan
-        question_lower = question.lower()
-        
         for drug in drugs:
-            if 'dosis' in question_lower and 'dewasa' in question_lower:
-                answer_parts.append(f"💊 **{drug['nama']}**")
-                answer_parts.append(f"**Dosis Dewasa:** {drug['dosis_dewasa']}")
-            elif 'dosis' in question_lower and 'anak' in question_lower:
-                answer_parts.append(f"💊 **{drug['nama']}**")
-                answer_parts.append(f"**Dosis Anak:** {drug['dosis_anak']}")
-            elif 'efek samping' in question_lower:
-                answer_parts.append(f"💊 **{drug['nama']}**")
+            answer_parts.append(f"💊 **{drug['nama']}**")
+            
+            if any(keyword in question_lower for keyword in ['dosis', 'berapa']):
+                if 'anak' in question_lower:
+                    answer_parts.append(f"**Dosis Anak:** {drug['dosis_anak']}")
+                elif 'dewasa' in question_lower:
+                    answer_parts.append(f"**Dosis Dewasa:** {drug['dosis_dewasa']}")
+                else:
+                    answer_parts.append(f"**Dosis Dewasa:** {drug['dosis_dewasa']}")
+                    answer_parts.append(f"**Dosis Anak:** {drug['dosis_anak']}")
+            
+            elif 'efek' in question_lower or 'samping' in question_lower:
                 answer_parts.append(f"**Efek Samping:** {drug['efek_samping']}")
+            
             elif 'kontra' in question_lower:
-                answer_parts.append(f"💊 **{drug['nama']}**")
                 answer_parts.append(f"**Kontraindikasi:** {drug['kontraindikasi']}")
+            
             elif 'interaksi' in question_lower:
-                answer_parts.append(f"💊 **{drug['nama']}**")
                 answer_parts.append(f"**Interaksi:** {drug['interaksi']}")
+            
+            elif any(keyword in question_lower for keyword in ['untuk apa', 'kegunaan', 'manfaat', 'indikasi']):
+                answer_parts.append(f"**Indikasi:** {drug['indikasi']}")
+            
             else:
-                answer_parts.append(f"💊 **{drug['nama']}**")
-                answer_parts.append(f"• Indikasi: {drug['indikasi']}")
-                answer_parts.append(f"• Dosis Dewasa: {drug['dosis_dewasa']}")
+                # Default answer
+                answer_parts.append(f"**Indikasi:** {drug['indikasi']}")
+                answer_parts.append(f"**Dosis Dewasa:** {drug['dosis_dewasa']}")
         
         return "\n\n".join(answer_parts)
 
@@ -463,60 +479,66 @@ st.markdown("""
         border: 1px solid #e0e0e0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    .message-time {
-        font-size: 0.75em;
-        opacity: 0.7;
-        margin-top: 5px;
-        text-align: right;
-    }
-    .bot-message .message-time {
-        text-align: left;
-    }
     .context-indicator {
-        background-color: #fff3cd;
-        border: 1px solid #ffeaa7;
+        background-color: #e8f5e8;
+        border: 1px solid #4caf50;
         border-radius: 8px;
         padding: 8px 12px;
         margin: 5px 0;
         font-size: 0.8em;
-        color: #856404;
+        color: #2e7d32;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # Header
-st.title("💊 AI-PharmaAssist BPJS - Enhanced Chatbot")
-st.markdown("**Chatbot Informasi Obat dengan Context Awareness**")
+st.title("💊 AI-PharmaAssist BPJS - Smart Chatbot")
+st.markdown("**Chatbot dengan Context Awareness yang Lebih Baik**")
 
 # Sidebar untuk debug info
 with st.sidebar:
-    st.header("🔍 Debug Info")
-    if st.session_state.get('conversation_history'):
-        st.write("**Last Context:**")
-        last_conv = st.session_state.conversation_history[-1]
-        st.write(f"Q: {last_conv['question']}")
-        st.write(f"A: {last_conv['answer'][:100]}...")
+    st.header("🔍 Debug Panel")
+    
+    if assistant.current_context:
+        st.success("**Active Context:**")
+        st.write(f"Drug: {assistant.current_context.get('current_drug', 'None')}")
+        st.write(f"Last Q: {assistant.current_context.get('last_question', 'None')[:50]}...")
+    else:
+        st.info("No active context")
+    
+    st.markdown("---")
+    st.write("**Test Scenarios:**")
+    if st.button("🧪 Test Follow-up"):
+        test_questions = [
+            "Apa dosis amoxicillin?",
+            "untuk anak",
+            "efek sampingnya apa?"
+        ]
+        for q in test_questions:
+            st.session_state.messages.append({"role": "user", "content": q, "timestamp": "TEST"})
+            answer, sources = assistant.ask_question(q)
+            st.session_state.messages.append({"role": "bot", "content": answer, "timestamp": "TEST"})
 
 # Layout utama
 col_chat, col_info = st.columns([2, 1])
 
 with col_chat:
     # Container chat
-    st.subheader("💬 Chat dengan Context Awareness")
+    st.subheader("💬 Percakapan Smart")
     
-    # Quick questions
-    st.markdown("**🎯 Contoh Percakapan Berantai:**")
+    # Quick questions untuk testing context
+    st.markdown("**🎯 Test Context Awareness:**")
     
-    demo_scenarios = [
+    test_scenarios = [
         "Apa dosis amoxicillin?",
-        "Dosis untuk dewasa berapa?",
-        "Efek sampingnya apa?"
+        "Untuk dewasa?",
+        "Efek samping?"
     ]
     
     cols = st.columns(3)
-    for i, scenario in enumerate(demo_scenarios):
+    for i, scenario in enumerate(test_scenarios):
         with cols[i]:
-            if st.button(scenario, use_container_width=True, key=f"scenario_{i}"):
+            if st.button(scenario, use_container_width=True, key=f"test_{i}"):
                 # Add user message
                 st.session_state.messages.append({
                     "role": "user", 
@@ -552,13 +574,13 @@ with col_chat:
     if not st.session_state.messages:
         st.markdown("""
         <div style='text-align: center; padding: 40px; color: #666;'>
-            <h3>👋 Selamat Datang!</h3>
-            <p>Chatbot ini memiliki <strong>context awareness</strong> - bisa memahami pertanyaan lanjutan</p>
-            <p><small>Contoh: Tanya "dosis amoxicillin?" lalu "untuk dewasa?" - sistem akan paham konteksnya</small></p>
+            <h3>👋 Smart Chatbot Ready!</h3>
+            <p>Sekarang bisa memahami percakapan berantai:</p>
+            <p><small>"Apa dosis amoxicillin?" → "untuk anak?" → "efek samping?"</small></p>
         </div>
         """, unsafe_allow_html=True)
     else:
-        for message in st.session_state.messages:
+        for i, message in enumerate(st.session_state.messages):
             if message["role"] == "user":
                 st.markdown(f"""
                 <div class="user-message">
@@ -567,6 +589,16 @@ with col_chat:
                 </div>
                 """, unsafe_allow_html=True)
             else:
+                # Tampilkan context indicator jika ada active context
+                if (i > 0 and assistant.current_context and 
+                    st.session_state.messages[i-1]["role"] == "user" and
+                    len(st.session_state.messages[i-1]["content"].split()) <= 3):
+                    st.markdown(f"""
+                    <div class="context-indicator">
+                        🎯 Memahami konteks: {assistant.current_context.get('current_drug', '').upper()}
+                    </div>
+                    """, unsafe_allow_html=True)
+                
                 st.markdown(f"""
                 <div class="bot-message">
                     <div>{message["content"]}</div>
@@ -586,7 +618,7 @@ with col_chat:
     with st.form("chat_form", clear_on_submit=True):
         user_input = st.text_input(
             "Tulis pertanyaan Anda:",
-            placeholder="Contoh: Dosis untuk dewasa? (setelah menanyakan obat tertentu)",
+            placeholder="Coba: 'Apa dosis amoxicillin?' lalu 'untuk anak?'",
             key="user_input"
         )
         
@@ -596,7 +628,7 @@ with col_chat:
             submit_btn = st.form_submit_button("🚀 Kirim", use_container_width=True)
         
         with col_btn2:
-            clear_btn = st.form_submit_button("🗑️ Hapus Chat", use_container_width=True)
+            clear_btn = st.form_submit_button("🗑️ Hapus Semua", use_container_width=True)
     
     if submit_btn and user_input:
         # Add user message
@@ -631,35 +663,36 @@ with col_chat:
     if clear_btn:
         st.session_state.messages = []
         st.session_state.conversation_history = []
+        assistant.current_context = {}  # Clear context juga
         st.rerun()
 
 with col_info:
-    st.subheader("ℹ️ Fitur Context Awareness")
+    st.subheader("ℹ️ Cara Kerja")
     
-    st.info("""
-    **🎯 Fitur Baru:**
+    st.success("""
+    **🎯 Context Awareness:**
     
-    • **Pemahaman Konteks**: Sistem mengingat percakapan sebelumnya
-    • **Pertanyaan Lanjutan**: Bisa tanya "dosis untuk dewasa?" setelah sebut obat
-    • **Enhanced Search**: Query otomatis diperkaya dengan konteks
-    • **Conversation Memory**: Menyimpan riwayat percakapan
+    • **Mengingat Obat**: Sistem tahu obat yang sedang dibahas
+    • **Pertanyaan Pendek**: Bisa jawab "untuk anak?" setelah sebut obat  
+    • **Auto-Enhance**: Query otomatis diperkaya dengan konteks
+    • **Smart Fallback**: Multiple strategies untuk konteks
     """)
     
     st.metric("💊 Obat dalam Database", len(assistant.drugs_db))
-    st.metric("💬 Riwayat Percakapan", len(st.session_state.conversation_history))
+    st.metric("🔗 Context Active", "✅" if assistant.current_context else "❌")
     
-    # Medical disclaimer
     st.warning("""
     **⚠️ Peringatan Medis**
     
-    Informasi untuk edukasi saja. Selalu konsultasi dengan dokter sebelum menggunakan obat.
+    Informasi untuk edukasi saja. 
+    Selalu konsultasi dengan dokter sebelum menggunakan obat.
     """)
 
 # Footer
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: #666;'>"
-    "💊 AI-PharmaAssist BPJS - Chatbot dengan Context Awareness"
+    "💊 AI-PharmaAssist BPJS - Enhanced Context Awareness"
     "</div>", 
     unsafe_allow_html=True
 )
