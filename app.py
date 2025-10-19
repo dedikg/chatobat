@@ -563,14 +563,14 @@ with st.form("chat_form", clear_on_submit=True):
         submit_btn = st.form_submit_button(
             "🚀 Kirim Pertanyaan", 
             use_container_width=True,
-           primaryColor="forestGreen"  # Button hijau muda untuk Kirim
+             type="info"  # Button hijau muda untuk Kirim
         )
     
     with col_btn2:
         clear_btn = st.form_submit_button(
             "🗑️ Hapus Chat", 
             use_container_width=True,
-            type="primary"  # Button merah muda untuk Hapus
+            type="danger"  # Button merah muda untuk Hapus
         )
 
 if submit_btn and user_input:
