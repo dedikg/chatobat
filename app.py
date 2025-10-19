@@ -568,51 +568,51 @@ with col_chat:
                 
                 st.rerun()
     
-    # Chat container
-    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+    # # Chat container
+    # st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     
-    if not st.session_state.messages:
-        st.markdown("""
-        <div style='text-align: center; padding: 40px; color: #666;'>
-            <h3>👋 Smart Chatbot Ready!</h3>
-            <p>Sekarang bisa memahami percakapan berantai:</p>
-            <p><small>"Apa dosis amoxicillin?" → "untuk anak?" → "efek samping?"</small></p>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        for i, message in enumerate(st.session_state.messages):
-            if message["role"] == "user":
-                st.markdown(f"""
-                <div class="user-message">
-                    <div>{message["content"]}</div>
-                    <div class="message-time">{message["timestamp"]}</div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                # Tampilkan context indicator jika ada active context
-                if (i > 0 and assistant.current_context and 
-                    st.session_state.messages[i-1]["role"] == "user" and
-                    len(st.session_state.messages[i-1]["content"].split()) <= 3):
-                    st.markdown(f"""
-                    <div class="context-indicator">
-                        🎯 Memahami konteks: {assistant.current_context.get('current_drug', '').upper()}
-                    </div>
-                    """, unsafe_allow_html=True)
+    # if not st.session_state.messages:
+    #     st.markdown("""
+    #     <div style='text-align: center; padding: 40px; color: #666;'>
+    #         <h3>👋 Smart Chatbot Ready!</h3>
+    #         <p>Sekarang bisa memahami percakapan berantai:</p>
+    #         <p><small>"Apa dosis amoxicillin?" → "untuk anak?" → "efek samping?"</small></p>
+    #     </div>
+    #     """, unsafe_allow_html=True)
+    # else:
+    #     for i, message in enumerate(st.session_state.messages):
+    #         if message["role"] == "user":
+    #             st.markdown(f"""
+    #             <div class="user-message">
+    #                 <div>{message["content"]}</div>
+    #                 <div class="message-time">{message["timestamp"]}</div>
+    #             </div>
+    #             """, unsafe_allow_html=True)
+    #         else:
+    #             # Tampilkan context indicator jika ada active context
+    #             if (i > 0 and assistant.current_context and 
+    #                 st.session_state.messages[i-1]["role"] == "user" and
+    #                 len(st.session_state.messages[i-1]["content"].split()) <= 3):
+    #                 st.markdown(f"""
+    #                 <div class="context-indicator">
+    #                     🎯 Memahami konteks: {assistant.current_context.get('current_drug', '').upper()}
+    #                 </div>
+    #                 """, unsafe_allow_html=True)
                 
-                st.markdown(f"""
-                <div class="bot-message">
-                    <div>{message["content"]}</div>
-                    <div class="message-time">{message["timestamp"]}</div>
-                </div>
-                """, unsafe_allow_html=True)
+    #             st.markdown(f"""
+    #             <div class="bot-message">
+    #                 <div>{message["content"]}</div>
+    #                 <div class="message-time">{message["timestamp"]}</div>
+    #             </div>
+    #             """, unsafe_allow_html=True)
                 
-                # Tampilkan sources jika ada
-                if "sources" in message and message["sources"]:
-                    with st.expander("📚 Sumber Informasi"):
-                        for drug in message["sources"]:
-                            st.write(f"• **{drug['nama']}** - {drug['golongan']}")
+    #             # Tampilkan sources jika ada
+    #             if "sources" in message and message["sources"]:
+    #                 with st.expander("📚 Sumber Informasi"):
+    #                     for drug in message["sources"]:
+    #                         st.write(f"• **{drug['nama']}** - {drug['golongan']}")
     
-    st.markdown('</div>', unsafe_allow_html=True)
+    # st.markdown('</div>', unsafe_allow_html=True)
     
     # Input area
     with st.form("chat_form", clear_on_submit=True):
