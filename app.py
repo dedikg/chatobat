@@ -322,15 +322,15 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header
-st.title("💊 Sistem RAG Tanya Jawab Informasi Obat")
-st.markdown("**Teknologi Retrieval-Augmented Generation untuk Informasi Obat yang Akurat**")
+st.title("💊 Sistem Tanya Jawab Informasi Obat")
+st.markdown("**Implementasi RAG untuk Sistem Tanya Jawab Informasi Obat**")
 
 # RAG Indicator
-st.markdown("""
-<div class="rag-indicator">
-    🚀 <strong>SISTEM RAG AKTIF</strong> - Menggunakan Retrieval-Augmented Generation untuk jawaban yang lebih akurat
-</div>
-""", unsafe_allow_html=True)
+# st.markdown("""
+# <div class="rag-indicator">
+#     🚀 <strong>SISTEM RAG AKTIF</strong> - Menggunakan Retrieval-Augmented Generation untuk jawaban yang lebih akurat
+# </div>
+# """, unsafe_allow_html=True)
 
 # Chat container
 # st.markdown("### 💬 Percakapan")
