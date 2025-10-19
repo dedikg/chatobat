@@ -5,9 +5,8 @@ from datetime import datetime
 import hashlib
 
 # Setup Gemini API
-GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=GEMINI_API_KEY)
-    gemini_available = True
+GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"] genai.configure(api_key=GEMINI_API_KEY) gemini_available = True
+
 
 class EnhancedPharmaAssistant:
     def __init__(self):
