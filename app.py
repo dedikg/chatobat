@@ -608,7 +608,6 @@ else:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Input area dengan button warna custom
 with st.form("chat_form", clear_on_submit=True):
     user_input = st.text_input(
         "Tulis pertanyaan Anda:",
@@ -621,15 +620,13 @@ with st.form("chat_form", clear_on_submit=True):
     with col_btn1:
         submit_btn = st.form_submit_button(
             "🚀 Kirim Pertanyaan", 
-            use_container_width=True,
-            type="primary"  # Button hijau
+            use_container_width=True
         )
     
     with col_btn2:
         clear_btn = st.form_submit_button(
             "🗑️ Hapus Chat", 
-            use_container_width=True,
-            type="secondary"  # Button merah
+            use_container_width=True
         )
 
 if submit_btn and user_input:
