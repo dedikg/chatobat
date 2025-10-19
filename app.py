@@ -152,12 +152,10 @@ class EnhancedPharmaAssistant:
                 'last_answer': answer,
                 'timestamp': datetime.now()
             }
-            st.sidebar.success(f"🔄 CONTEXT UPDATED: {detected_drug}")
         else:
             # Jika tidak ada drug yang terdeteksi, clear context setelah beberapa percakapan
             if self.current_context and len(st.session_state.conversation_history) > 3:
                 self.current_context = {}
-                st.sidebar.info("🔄 CONTEXT CLEARED")
     
     def _enhance_query_with_context(self, query):
         """Enhance query dengan konteks percakapan yang lebih robust"""
@@ -177,7 +175,6 @@ class EnhancedPharmaAssistant:
                 
                 if is_follow_up:
                     enhanced_query = f"{query} {drug_info['nama']}"
-                    st.sidebar.write(f"🎯 ENHANCED: '{query}' -> '{enhanced_query}'")
                     return enhanced_query
         
         # Jika tidak ada context, coba extract dari query langsung
@@ -192,7 +189,6 @@ class EnhancedPharmaAssistant:
             drug_info = self.drugs_db.get(current_drug)
             if drug_info:
                 enhanced_query = f"{query} {drug_info['nama']}"
-                st.sidebar.write(f"🎯 SHORT QUERY ENHANCED: '{query}' -> '{enhanced_query}'")
                 return enhanced_query
         
         return query
@@ -256,7 +252,6 @@ class EnhancedPharmaAssistant:
         if (self.current_context and 'current_drug' in self.current_context and 
             drug_info['nama'].lower() == self.current_context['current_drug']):
             score += 6
-            st.sidebar.write(f"🎯 CONTEXT BONUS: +6 untuk {drug_info['nama']}")
         
         return score
     
@@ -267,10 +262,6 @@ class EnhancedPharmaAssistant:
         
         results = []
         
-        st.sidebar.write(f"🔍 SEARCH: '{query}'")
-        if enhanced_query != query:
-            st.sidebar.write(f"🔍 ENHANCED: '{enhanced_query}'")
-        
         for drug_id, drug_info in self.drugs_db.items():
             score = self._calculate_similarity_score(enhanced_query, drug_info)
             
@@ -280,11 +271,9 @@ class EnhancedPharmaAssistant:
                     'drug_info': drug_info,
                     'drug_id': drug_id
                 })
-                st.sidebar.write(f"✅ {drug_info['nama']}: score {score}")
         
         # Jika tidak ada hasil dengan enhanced query, coba dengan original query
         if not results and enhanced_query != query:
-            st.sidebar.write("🔄 No results with enhanced query, trying original...")
             for drug_id, drug_info in self.drugs_db.items():
                 score = self._calculate_similarity_score(query, drug_info)
                 
@@ -294,13 +283,11 @@ class EnhancedPharmaAssistant:
                         'drug_info': drug_info,
                         'drug_id': drug_id
                     })
-                    st.sidebar.write(f"✅ {drug_info['nama']}: score {score}")
         
         # Sort by score and return top_k
         results.sort(key=lambda x: x['score'], reverse=True)
         final_drugs = [result['drug_info'] for result in results[:top_k]]
         
-        st.sidebar.write(f"📊 FINAL RESULTS: {[drug['nama'] for drug in final_drugs]}")
         return final_drugs
     
     def ask_question(self, question):
@@ -479,6 +466,15 @@ st.markdown("""
         border: 1px solid #e0e0e0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+    .message-time {
+        font-size: 0.75em;
+        opacity: 0.7;
+        margin-top: 5px;
+        text-align: right;
+    }
+    .bot-message .message-time {
+        text-align: left;
+    }
     .context-indicator {
         background-color: #e8f5e8;
         border: 1px solid #4caf50;
@@ -488,211 +484,177 @@ st.markdown("""
         font-size: 0.8em;
         color: #2e7d32;
     }
+    .welcome-message {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+        background: white;
+        border-radius: 10px;
+        border: 2px dashed #e0e0e0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # Header
-st.title("💊Implementasi Retrieval-Augmented Generation (RAG) untuk Sistem Tanya Jawab Informasi Obat Berbasis Conversational AI")
+st.title("💊 Implementasi Retrieval-Augmented Generation (RAG) untuk Sistem Tanya Jawab Informasi Obat Berbasis Conversational AI")
 st.markdown("**Silahkan Masukkan Pertanyaan anda tentang obat**")
 
-# # Sidebar untuk debug info
-# with st.sidebar:
-#     st.header("🔍 Debug Panel")
-    
-#     if assistant.current_context:
-#         st.success("**Active Context:**")
-#         st.write(f"Drug: {assistant.current_context.get('current_drug', 'None')}")
-#         st.write(f"Last Q: {assistant.current_context.get('last_question', 'None')[:50]}...")
-#     else:
-#         st.info("No active context")
-    
-#     st.markdown("---")
-#     st.write("**Test Scenarios:**")
-#     if st.button("🧪 Test Follow-up"):
-#         test_questions = [
-#             "Apa dosis amoxicillin?",
-#             "untuk anak",
-#             "efek sampingnya apa?"
-#         ]
-#         for q in test_questions:
-#             st.session_state.messages.append({"role": "user", "content": q, "timestamp": "TEST"})
-#             answer, sources = assistant.ask_question(q)
-#             st.session_state.messages.append({"role": "bot", "content": answer, "timestamp": "TEST"})
+# Layout utama - full width
+st.markdown("### 💬 Percakapan")
 
-# Layout utama
-col_chat, = st.columns([2])
+# Quick questions untuk testing context
+st.markdown("**Pertanyaan Contoh:**")
 
-with col_chat:
-    # Container chat
-    st.subheader("💬 Percakapan Smart")
-    
-    # Quick questions untuk testing context
-    st.markdown("**🎯 Test Context Awareness:**")
-    
-    test_scenarios = [
-        "Apa dosis amoxicillin?",
-        "Untuk dewasa?",
-        "Efek samping?"
-    ]
-    
-    cols = st.columns(3)
-    for i, scenario in enumerate(test_scenarios):
-        with cols[i]:
-            if st.button(scenario, use_container_width=True, key=f"test_{i}"):
-                # Add user message
-                st.session_state.messages.append({
-                    "role": "user", 
-                    "content": scenario,
-                    "timestamp": datetime.now().strftime("%H:%M")
-                })
-                
-                # Get bot response
-                with st.spinner("🔄 Memproses..."):
-                    answer, sources = assistant.ask_question(scenario)
-                    
-                    # Add to conversation history
-                    st.session_state.conversation_history.append({
-                        'timestamp': datetime.now(),
-                        'question': scenario,
-                        'answer': answer,
-                        'sources': [drug['nama'] for drug in sources]
-                    })
-                    
-                    # Add bot message
-                    st.session_state.messages.append({
-                        "role": "bot", 
-                        "content": answer,
-                        "sources": sources,
-                        "timestamp": datetime.now().strftime("%H:%M")
-                    })
-                
-                st.rerun()
-    
-    # # Chat container
-    # st.markdown('<div class="chat-container">', unsafe_allow_html=True)
-    
-    # if not st.session_state.messages:
-    #     st.markdown("""
-    #     <div style='text-align: center; padding: 40px; color: #666;'>
-    #         <h3>👋 Smart Chatbot Ready!</h3>
-    #         <p>Sekarang bisa memahami percakapan berantai:</p>
-    #         <p><small>"Apa dosis amoxicillin?" → "untuk anak?" → "efek samping?"</small></p>
-    #     </div>
-    #     """, unsafe_allow_html=True)
-    # else:
-    #     for i, message in enumerate(st.session_state.messages):
-    #         if message["role"] == "user":
-    #             st.markdown(f"""
-    #             <div class="user-message">
-    #                 <div>{message["content"]}</div>
-    #                 <div class="message-time">{message["timestamp"]}</div>
-    #             </div>
-    #             """, unsafe_allow_html=True)
-    #         else:
-    #             # Tampilkan context indicator jika ada active context
-    #             if (i > 0 and assistant.current_context and 
-    #                 st.session_state.messages[i-1]["role"] == "user" and
-    #                 len(st.session_state.messages[i-1]["content"].split()) <= 3):
-    #                 st.markdown(f"""
-    #                 <div class="context-indicator">
-    #                     🎯 Memahami konteks: {assistant.current_context.get('current_drug', '').upper()}
-    #                 </div>
-    #                 """, unsafe_allow_html=True)
-                
-    #             st.markdown(f"""
-    #             <div class="bot-message">
-    #                 <div>{message["content"]}</div>
-    #                 <div class="message-time">{message["timestamp"]}</div>
-    #             </div>
-    #             """, unsafe_allow_html=True)
-                
-    #             # Tampilkan sources jika ada
-    #             if "sources" in message and message["sources"]:
-    #                 with st.expander("📚 Sumber Informasi"):
-    #                     for drug in message["sources"]:
-    #                         st.write(f"• **{drug['nama']}** - {drug['golongan']}")
-    
-    # st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Input area
-    with st.form("chat_form", clear_on_submit=True):
-        user_input = st.text_input(
-            "Tulis pertanyaan Anda:",
-            placeholder="Coba: 'Apa dosis amoxicillin?' lalu 'untuk anak?'",
-            key="user_input"
-        )
-        
-        col_btn1, col_btn2 = st.columns([3, 1])
-        
-        with col_btn1:
-            submit_btn = st.form_submit_button("🚀 Kirim", use_container_width=True)
-        
-        with col_btn2:
-            clear_btn = st.form_submit_button("🗑️ Hapus Semua", use_container_width=True)
-    
-    if submit_btn and user_input:
-        # Add user message
-        st.session_state.messages.append({
-            "role": "user", 
-            "content": user_input,
-            "timestamp": datetime.now().strftime("%H:%M")
-        })
-        
-        # Get bot response
-        with st.spinner("🔍 Menganalisis konteks..."):
-            answer, sources = assistant.ask_question(user_input)
-            
-            # Add to conversation history
-            st.session_state.conversation_history.append({
-                'timestamp': datetime.now(),
-                'question': user_input,
-                'answer': answer,
-                'sources': [drug['nama'] for drug in sources]
-            })
-            
-            # Add bot message
+test_scenarios = [
+    "Apa dosis amoxicillin?",
+    "Untuk dewasa?",
+    "Efek samping?"
+]
+
+cols = st.columns(3)
+for i, scenario in enumerate(test_scenarios):
+    with cols[i]:
+        if st.button(scenario, use_container_width=True, key=f"test_{i}"):
+            # Add user message
             st.session_state.messages.append({
-                "role": "bot", 
-                "content": answer,
-                "sources": sources,
+                "role": "user", 
+                "content": scenario,
                 "timestamp": datetime.now().strftime("%H:%M")
             })
-        
-        st.rerun()
-    
-    if clear_btn:
-        st.session_state.messages = []
-        st.session_state.conversation_history = []
-        assistant.current_context = {}  # Clear context juga
-        st.rerun()
+            
+            # Get bot response
+            with st.spinner("🔄 Memproses..."):
+                answer, sources = assistant.ask_question(scenario)
+                
+                # Add to conversation history
+                st.session_state.conversation_history.append({
+                    'timestamp': datetime.now(),
+                    'question': scenario,
+                    'answer': answer,
+                    'sources': [drug['nama'] for drug in sources]
+                })
+                
+                # Add bot message
+                st.session_state.messages.append({
+                    "role": "bot", 
+                    "content": answer,
+                    "sources": sources,
+                    "timestamp": datetime.now().strftime("%H:%M")
+                })
+            
+            st.rerun()
 
-# with col_info:
-#     st.subheader("ℹ️ Cara Kerja")
+# Chat container
+st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+
+if not st.session_state.messages:
+    st.markdown("""
+    <div class="welcome-message">
+        <h3>👋 Selamat Datang di Asisten Obat AI!</h3>
+        <p>Silakan tanyakan informasi tentang obat-obatan</p>
+        <p><small>Contoh: "Apa dosis amoxicillin?" → "untuk anak?" → "efek samping?"</small></p>
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    for i, message in enumerate(st.session_state.messages):
+        if message["role"] == "user":
+            st.markdown(f"""
+            <div class="user-message">
+                <div>{message["content"]}</div>
+                <div class="message-time">{message["timestamp"]}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            # Tampilkan context indicator jika ada active context
+            if (i > 0 and assistant.current_context and 
+                st.session_state.messages[i-1]["role"] == "user" and
+                len(st.session_state.messages[i-1]["content"].split()) <= 3):
+                st.markdown(f"""
+                <div class="context-indicator">
+                    🎯 Memahami konteks: {assistant.current_context.get('current_drug', '').upper()}
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown(f"""
+            <div class="bot-message">
+                <div>{message["content"]}</div>
+                <div class="message-time">{message["timestamp"]}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Tampilkan sources jika ada
+            if "sources" in message and message["sources"]:
+                with st.expander("📚 Sumber Informasi"):
+                    for drug in message["sources"]:
+                        st.write(f"• **{drug['nama']}** - {drug['golongan']}")
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Input area
+with st.form("chat_form", clear_on_submit=True):
+    user_input = st.text_input(
+        "Tulis pertanyaan Anda:",
+        placeholder="Contoh: Apa dosis amoxicillin? atau tanyakan tentang efek samping, kontraindikasi, dll.",
+        key="user_input"
+    )
     
-#     st.success("""
-#     **🎯 Context Awareness:**
+    col_btn1, col_btn2 = st.columns([3, 1])
     
-#     • **Mengingat Obat**: Sistem tahu obat yang sedang dibahas
-#     • **Pertanyaan Pendek**: Bisa jawab "untuk anak?" setelah sebut obat  
-#     • **Auto-Enhance**: Query otomatis diperkaya dengan konteks
-#     • **Smart Fallback**: Multiple strategies untuk konteks
-#     """)
+    with col_btn1:
+        submit_btn = st.form_submit_button("🚀 Kirim Pertanyaan", use_container_width=True)
     
-#     st.metric("💊 Obat dalam Database", len(assistant.drugs_db))
-#     st.metric("🔗 Context Active", "✅" if assistant.current_context else "❌")
+    with col_btn2:
+        clear_btn = st.form_submit_button("🗑️ Hapus Chat", use_container_width=True)
+
+if submit_btn and user_input:
+    # Add user message
+    st.session_state.messages.append({
+        "role": "user", 
+        "content": user_input,
+        "timestamp": datetime.now().strftime("%H:%M")
+    })
     
-#     st.warning("""
-#     **⚠️ Peringatan Medis**
+    # Get bot response
+    with st.spinner("🔍 Mencari informasi..."):
+        answer, sources = assistant.ask_question(user_input)
+        
+        # Add to conversation history
+        st.session_state.conversation_history.append({
+            'timestamp': datetime.now(),
+            'question': user_input,
+            'answer': answer,
+            'sources': [drug['nama'] for drug in sources]
+        })
+        
+        # Add bot message
+        st.session_state.messages.append({
+            "role": "bot", 
+            "content": answer,
+            "sources": sources,
+            "timestamp": datetime.now().strftime("%H:%M")
+        })
     
-#     Informasi untuk edukasi saja. 
-#     Selalu konsultasi dengan dokter sebelum menggunakan obat.
-#     """)
+    st.rerun()
+
+if clear_btn:
+    st.session_state.messages = []
+    st.session_state.conversation_history = []
+    assistant.current_context = {}  # Clear context juga
+    st.rerun()
+
+# Medical disclaimer
+st.markdown("---")
+st.warning("""
+**⚠️ Peringatan Medis:** Informasi ini untuk edukasi dan referensi saja. 
+Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat. 
+Jangan mengganti atau menghentikan pengobatan tanpa konsultasi profesional.
+""")
 
 # Footer
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: #666;'>"
-    "Tugas Kuliah Sistem Biomedis"
+    "Tugas Kuliah Sistem Biomedis - Implementasi RAG untuk Sistem Tanya Jawab Informasi Obat"
     "</div>", 
     unsafe_allow_html=True
 )
