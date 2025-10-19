@@ -322,8 +322,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header
-st.title("💊 Sistem Tanya Jawab Informasi Obat")
-st.markdown("**Implementasi RAG untuk Sistem Tanya Jawab Informasi Obat Berbasis AI**")
+st.markdown('<h1 class="centered-title">💊 Sistem Tanya Jawab Informasi Obat</h1>', unsafe_allow_html=True)
+st.markdown('<p class="centered-subtitle">Implementasi RAG untuk Sistem Tanya Jawab Informasi Obat Berbasis AI</p>', unsafe_allow_html=True)
 
 # RAG Indicator
 # st.markdown("""
