@@ -6,7 +6,7 @@ from datetime import datetime
 
 # Konfigurasi halaman
 st.set_page_config(
-    page_title="Sistem RAG Tanya Jawab Informasi Obat",
+    page_title="Sistem Tanya Jawab Informasi Obat",
     page_icon="💊",
     layout="wide"
 )
@@ -322,7 +322,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header
-st.markdown('<h1 class="centered-title">💊 Sistem Tanya Jawab Informasi Obat</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="centered-title">💊 Sistem Tanya Jawab Obat</h1>', unsafe_allow_html=True)
 st.markdown('<p class="centered-subtitle">Implementasi RAG untuk Sistem Tanya Jawab Informasi Obat Berbasis AI</p>', unsafe_allow_html=True)
 
 # RAG Indicator
@@ -451,6 +451,6 @@ Jangan mengganti atau menghentikan pengobatan tanpa konsultasi profesional.
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: #666;'>"
-    "Tugas Kuliah Sistem Biomedis - Implementasi RAG untuk Sistem Tanya Jawab Informasi Obat"
+    "Tugas Kuliah Sistem Biomedis - Implementasi RAG untuk Sistem Tanya Jawab Informasi Obat berbasis AI"
     "</div>", 
     unsafe_allow_html=True)
