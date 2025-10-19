@@ -569,11 +569,11 @@ else:
             if (i > 0 and assistant.current_context and 
                 st.session_state.messages[i-1]["role"] == "user" and
                 len(st.session_state.messages[i-1]["content"].split()) <= 3):
-                # st.markdown(f"""
+                 # st.markdown(f"""
                 # <div class="context-indicator">
                 #     🎯 Memahami konteks: {assistant.current_context.get('current_drug', '').upper()}
                 # </div>
-                """, unsafe_allow_html=True)
+                # """, unsafe_allow_html=True)
             
             st.markdown(f"""
             <div class="bot-message">
