@@ -618,7 +618,7 @@ st.title("💊 Implementasi Retrieval-Augmented Generation (RAG) untuk Sistem Ta
 st.markdown("**Silahkan Masukkan Pertanyaan anda tentang obat saat ini hanya terbatas : Paracetamol, Amoxicillin, Omeprazole, Ibuprofen, Vitamin C, Loratadine, Simvastatin.**")
 
 # Chat container
-st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+# st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 
 if not st.session_state.messages:
     st.markdown("""
