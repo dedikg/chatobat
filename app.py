@@ -24,7 +24,6 @@ except Exception as e:
 class EnhancedPharmaAssistant:
     def __init__(self):
         self.drugs_db = self._initialize_drug_database()
-        self.conversation_history = []
         
     def _initialize_drug_database(self):
         """Initialize expanded drug database dengan gejala yang benar"""
@@ -262,7 +261,8 @@ class EnhancedPharmaAssistant:
     
     def add_to_conversation_history(self, question, answer, sources):
         """Add interaction to conversation history"""
-        self.conversation_history.append({
+        conversation_history = st.session_state.get('conversation_history', [])
+        conversation_history.append({
             'timestamp': datetime.now(),
             'question': question,
             'answer': answer,
@@ -271,15 +271,18 @@ class EnhancedPharmaAssistant:
         })
         
         # Keep only last 20 conversations
-        if len(self.conversation_history) > 20:
-            self.conversation_history.pop(0)
+        if len(conversation_history) > 20:
+            conversation_history.pop(0)
+        
+        st.session_state.conversation_history = conversation_history
     
     def get_conversation_context(self):
         """Get recent conversation context for better continuity"""
-        if len(self.conversation_history) < 2:
+        conversation_history = st.session_state.get('conversation_history', [])
+        if len(conversation_history) < 2:
             return ""
         
-        recent_conv = self.conversation_history[-2:]  # Get last 2 exchanges
+        recent_conv = conversation_history[-2:]  # Get last 2 exchanges
         context = "Percakapan sebelumnya:\n"
         for conv in recent_conv:
             context += f"Q: {conv['question']}\nA: {conv['answer'][:100]}...\n"
@@ -371,6 +374,10 @@ def load_assistant():
 
 assistant = load_assistant()
 
+# Initialize session state untuk conversation history
+if 'conversation_history' not in st.session_state:
+    st.session_state.conversation_history = []
+
 # Enhanced UI Components
 st.title("💊 AI-PharmaAssist BPJS Kesehatan - Enhanced RAG")
 st.markdown("**Sistem Tanya Jawab Informasi Obat Berbasis Conversational AI dengan RAG**")
@@ -404,7 +411,7 @@ with st.sidebar:
     else:
         st.warning("⚠️ Gemini: Using Fallback Mode")
     st.metric("Jumlah Obat", len(assistant.drugs_db))
-    st.metric("Percakapan Tersimpan", len(assistant.conversation_history))
+    st.metric("Percakapan Tersimpan", len(st.session_state.conversation_history))
 
 # Main Interface dengan tabs enhanced
 tab1, tab2, tab3, tab4 = st.tabs(["🔍 Tanya Obat", "📊 Data Obat", "💬 Riwayat", "🎯 Demo Cepat"])
@@ -413,7 +420,7 @@ with tab1:
     st.subheader("Tanya Informasi Obat - Enhanced RAG")
     
     # Conversation starter
-    if not assistant.conversation_history:
+    if not st.session_state.conversation_history:
         st.info("""
         💡 **Tips:** Anda bisa menanyakan:
         • **Gejala:** "obat sakit kepala", "obat demam", "obat maag"
@@ -434,12 +441,16 @@ with tab1:
     
     with col2:
         if st.button("🔄 Clear Chat", use_container_width=True):
-            assistant.conversation_history.clear()
+            # Clear conversation history dari session state
+            st.session_state.conversation_history = []
             st.rerun()
     
     if ask_btn and question:
         with st.spinner("🔍 Mencari informasi dengan Enhanced RAG..."):
             answer, sources = assistant.ask_question(question)
+            
+            # Add to conversation history
+            assistant.add_to_conversation_history(question, answer, sources)
             
             # Display results
             st.success("💡 **Informasi Obat:**")
@@ -526,7 +537,47 @@ with tab2:
     Jangan mengganti atau menghentikan pengobatan tanpa konsultasi profesional.
     """)
 
-# ... (tab 3 dan 4 tetap sama)
+with tab3:
+    st.subheader("💬 Riwayat Percakapan")
+    
+    if st.session_state.conversation_history:
+        for i, conv in enumerate(reversed(st.session_state.conversation_history)):
+            with st.expander(f"🗨️ Percakapan {len(st.session_state.conversation_history)-i} - {conv['timestamp'].strftime('%H:%M:%S')}"):
+                st.write(f"**Q:** {conv['question']}")
+                st.write(f"**A:** {conv['answer']}")
+                st.caption(f"📚 Sumber: {', '.join(conv['sources'])}")
+    else:
+        st.info("Belum ada riwayat percakapan. Mulai tanya jawab di tab 'Tanya Obat'.")
+
+with tab4:
+    st.subheader("🎯 Demo Cepat - Enhanced RAG")
+    
+    demo_questions = [
+        "Obat untuk sakit kepala?",
+        "Apa dosis amoxicillin untuk dewasa?",
+        "Bolehkah ibu hamil minum obat alergi?",
+        "Apa efek samping simvastatin?",
+        "Obat untuk maag dan asam lambung?",
+        "Vitamin untuk daya tahan tubuh?",
+        "Interaksi paracetamol dengan alkohol?",
+        "Obat untuk kolesterol tinggi?"
+    ]
+    
+    cols = st.columns(2)
+    for i, question in enumerate(demo_questions):
+        with cols[i % 2]:
+            if st.button(f"🎯 {question}", use_container_width=True):
+                with st.spinner("Mencari informasi..."):
+                    answer, sources = assistant.ask_question(question)
+                    assistant.add_to_conversation_history(question, answer, sources)
+                    
+                    st.success("💡 **Jawaban:**")
+                    st.write(answer)
+                    
+                    if sources:
+                        with st.expander("📚 Sumber:"):
+                            for drug in sources:
+                                st.write(f"• **{drug['nama']}**")
 
 # Enhanced Footer
 st.markdown("---")
