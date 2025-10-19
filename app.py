@@ -69,6 +69,58 @@ class SimpleRAGPharmaAssistant:
                 "kategori": "lambung, maag, gerd, asam",
                 "gejala": "maag, asam lambung, nyeri ulu hati, heartburn, perut kembung, mual",
                 "peringatan": "Gunakan sebelum makan, tidak untuk penggunaan jangka panjang tanpa pengawasan dokter"
+            },
+                       "ibuprofen": {
+                "nama": "Ibuprofen",
+                "golongan": "Anti-inflamasi nonsteroid (NSAID)",
+                "indikasi": "Nyeri, inflamasi, demam, arthritis, dismenore, sakit kepala, migrain, nyeri otot, nyeri sendi",
+                "dosis_dewasa": "200-400 mg setiap 4-6 jam, maksimal 1200 mg/hari",
+                "dosis_anak": "5-10 mg/kgBB setiap 6-8 jam",
+                "efek_samping": "Gangguan lambung, pusing, ruam kulit, tinitus",
+                "kontraindikasi": "Ulkus peptikum, gangguan ginjal, hamil trimester ketiga",
+                "interaksi": "Meningkatkan risiko perdarahan dengan antikoagulan",
+                "merek_dagang": "Proris, Arthrifen, Ibufar",
+                "kategori": "antiinflamasi, nyeri, demam, radang",
+                "gejala": "sakit kepala, migrain, nyeri, demam, radang, kram haid, nyeri sendi, pegal"
+            },
+            "vitamin_c": {
+                "nama": "Vitamin C",
+                "golongan": "Vitamin dan Suplemen",
+                "indikasi": "Suplementasi vitamin C, meningkatkan daya tahan tubuh, penyembuhan luka, sariawan, flu",
+                "dosis_dewasa": "500-1000 mg per hari",
+                "dosis_anak": "sesuai kebutuhan, konsultasi dokter",
+                "efek_samping": "Diare pada dosis tinggi, gangguan pencernaan",
+                "kontraindikasi": "Hipersensitif",
+                "interaksi": "Dapat mempengaruhi efektivitas beberapa obat kemoterapi",
+                "merek_dagang": "Redoxon, Enervon C, Holisticare Ester C",
+                "kategori": "vitamin, suplemen, imunitas",
+                "gejala": "daya tahan tubuh lemah, sariawan, pemulihan sakit, lelah, flu"
+            },
+            "loratadine": {
+                "nama": "Loratadine",
+                "golongan": "Antihistamin Generasi Kedua",
+                "indikasi": "Rinitis alergi, urtikaria, alergi kulit, biduran, gatal-gatal, bersin-bersin, rhinitis",
+                "dosis_dewasa": "10 mg sekali sehari",
+                "dosis_anak": "5 mg sekali sehari (usia 6-12 tahun)",
+                "efek_samping": "Mengantuk (jarang), sakit kepala, mulut kering",
+                "kontraindikasi": "Hipersensitif, anak <6 tahun",
+                "interaksi": "Erythromycin, ketoconazole dapat meningkatkan kadar loratadine",
+                "merek_dagang": "Clarityne, Loramine, Allertine",
+                "kategori": "alergi, antihistamin, gatal",
+                "gejala": "alergi, gatal, bersin, pilek alergi, biduran, ruam kulit, hidung tersumbat"
+            },
+            "simvastatin": {
+                "nama": "Simvastatin",
+                "golongan": "Statin (Penurun Kolesterol)",
+                "indikasi": "Hiperkolesterolemia, pencegahan penyakit kardiovaskular, kolesterol tinggi, trigliserida tinggi",
+                "dosis_dewasa": "10-40 mg sekali sehari malam hari",
+                "dosis_anak": "Tidak dianjurkan untuk anak",
+                "efek_samping": "Nyeri otot, gangguan hati, sakit kepala",
+                "kontraindikasi": "Penyakit hati aktif, hamil, menyusui",
+                "interaksi": "Eritromisin, antijamur, grapefruit juice",
+                "merek_dagang": "Zocor, Simvor, Lipostat",
+                "kategori": "kolesterol, statin, jantung",
+                "gejala": "kolesterol tinggi, lemak darah tinggi, risiko jantung"
             }
         }
         return drugs_db
