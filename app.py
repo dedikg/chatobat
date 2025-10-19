@@ -615,7 +615,7 @@ st.markdown("""
 
 # Header
 st.title("💊 Implementasi Retrieval-Augmented Generation (RAG) untuk Sistem Tanya Jawab Informasi Obat Berbasis Conversational AI")
-st.markdown("**Silahkan Masukkan Pertanyaan anda tentang obat**")
+st.markdown("**Silahkan Masukkan Pertanyaan anda tentang obat saat ini hanya terbatas : Paracetamol, Amoxicillin, Omeprazole, Ibuprofen, Vitamin C, Loratadine, Simvastatin.**")
 
 # Chat container
 st.markdown('<div class="chat-container">', unsafe_allow_html=True)
