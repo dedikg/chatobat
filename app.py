@@ -456,27 +456,28 @@ st.markdown(
     unsafe_allow_html=True)
 # ==================== EVALUATION SECTION ====================
 
-def show_evaluation_section():
-    """Section untuk evaluasi akurasi"""
+def show_enhanced_evaluation():
     st.sidebar.markdown("---")
-    st.sidebar.subheader("🧪 Evaluation Tools")
+    st.sidebar.subheader("🧪 Enhanced Evaluation")
     
-    if st.sidebar.button("Run Accuracy Test"):
-        with st.spinner("Running accuracy evaluation..."):
-            # Simple evaluator
-            class QuickEvaluator:
+    if st.sidebar.button("Run Detailed Accuracy Test"):
+        with st.spinner("Running comprehensive evaluation..."):
+            
+            class EnhancedEvaluator:
                 def __init__(self, assistant):
                     self.assistant = assistant
                     self.test_cases = [
                         {
                             'question': 'Apa dosis paracetamol untuk dewasa?',
-                            'expected_keywords': ['500-1000 mg', '4-6 jam', '4000 mg/hari'],
-                            'expected_drug': 'Paracetamol'
+                            'expected_keywords': ['500', '1000', 'mg', '4-6 jam', '4000', 'maksimal'],
+                            'expected_drug': 'Paracetamol',
+                            'category': 'dosis'
                         },
                         {
-                            'question': 'Efek samping amoxicillin?', 
-                            'expected_keywords': ['diare', 'mual', 'ruam kulit'],
-                            'expected_drug': 'Amoxicillin'
+                            'question': 'Efek samping amoxicillin?',
+                            'expected_keywords': ['diare', 'mual', 'ruam', 'alergi', 'kandidiasis'],
+                            'expected_drug': 'Amoxicillin', 
+                            'category': 'keamanan'
                         }
                     ]
                 
@@ -485,43 +486,145 @@ def show_evaluation_section():
                     for test in self.test_cases:
                         answer, sources = self.assistant.ask_question(test['question'])
                         
-                        # Calculate scores
-                        keyword_score = self._keyword_score(answer, test['expected_keywords'])
-                        drug_score = 1.0 if any(d['nama'] == test['expected_drug'] for d in sources) else 0.0
+                        # Clean answer untuk analysis (remove markdown)
+                        clean_answer = self._clean_answer(answer)
+                        
+                        # Multiple scoring methods
+                        keyword_score = self._keyword_score(clean_answer, test['expected_keywords'])
+                        drug_score = self._drug_score(sources, test['expected_drug'])
+                        relevance_score = self._relevance_score(clean_answer, test['question'])
+                        
+                        # Found keywords detail
+                        found_keywords = self._get_found_keywords(clean_answer, test['expected_keywords'])
+                        missing_keywords = self._get_missing_keywords(clean_answer, test['expected_keywords'])
                         
                         results.append({
                             'Question': test['question'],
+                            'Category': test['category'],
                             'Expected Drug': test['expected_drug'],
                             'Keyword Score': f"{keyword_score:.0%}",
                             'Drug Match': "✅" if drug_score == 1.0 else "❌",
-                            'Answer Preview': answer[:80] + "..." if len(answer) > 80 else answer
+                            'Relevance': f"{relevance_score:.0%}",
+                            'Found Keywords': ", ".join(found_keywords) if found_keywords else "None",
+                            'Missing Keywords': ", ".join(missing_keywords) if missing_keywords else "None",
+                            'Answer Preview': clean_answer[:100] + "..." if len(clean_answer) > 100 else clean_answer
                         })
+                    
                     return results
                 
+                def _clean_answer(self, answer):
+                    """Remove markdown formatting untuk analysis yang lebih bersih"""
+                    import re
+                    # Remove **bold**, *italic*, etc
+                    clean = re.sub(r'\*\*(.*?)\*\*', r'\1', answer)  # Remove **bold**
+                    clean = re.sub(r'\*(.*?)\*', r'\1', clean)       # Remove *italic*
+                    clean = re.sub(r'`(.*?)`', r'\1', clean)         # Remove `code`
+                    clean = re.sub(r'#+\s*', '', clean)              # Remove headers
+                    return clean.strip()
+                
                 def _keyword_score(self, answer, keywords):
+                    """Better keyword matching"""
                     answer_lower = answer.lower()
-                    found = sum(1 for kw in keywords if kw.lower() in answer_lower)
-                    return found / len(keywords)
+                    found_keywords = 0
+                    
+                    for keyword in keywords:
+                        keyword_lower = keyword.lower()
+                        
+                        # Exact match
+                        if keyword_lower in answer_lower:
+                            found_keywords += 1
+                        # Partial match untuk compound words
+                        elif any(part in answer_lower for part in keyword_lower.split('-')):  # untuk "4-6 jam"
+                            found_keywords += 0.8
+                        # Number matching (flexible)
+                        elif keyword.isdigit() and any(char.isdigit() for char in answer_lower):
+                            # Check if number appears in answer
+                            numbers_in_answer = re.findall(r'\d+', answer_lower)
+                            if keyword in numbers_in_answer:
+                                found_keywords += 1
+                    
+                    return found_keywords / len(keywords) if keywords else 0
+                
+                def _get_found_keywords(self, answer, keywords):
+                    """Return list of found keywords"""
+                    answer_lower = answer.lower()
+                    found = []
+                    for keyword in keywords:
+                        if keyword.lower() in answer_lower:
+                            found.append(keyword)
+                    return found
+                
+                def _get_missing_keywords(self, answer, keywords):
+                    """Return list of missing keywords"""
+                    answer_lower = answer.lower()
+                    missing = []
+                    for keyword in keywords:
+                        if keyword.lower() not in answer_lower:
+                            missing.append(keyword)
+                    return missing
+                
+                def _drug_score(self, sources, expected_drug):
+                    """Check if correct drug is retrieved"""
+                    if not sources:
+                        return 0.0
+                    return 1.0 if any(drug['nama'].lower() == expected_drug.lower() for drug in sources) else 0.0
+                
+                def _relevance_score(self, answer, question):
+                    """Basic relevance scoring"""
+                    question_words = set(question.lower().split())
+                    answer_words = set(answer.lower().split())
+                    
+                    if not question_words:
+                        return 0
+                    
+                    overlap = len(question_words.intersection(answer_words))
+                    return min(overlap / len(question_words), 1.0)
             
             # Run evaluation
-            evaluator = QuickEvaluator(assistant)
+            evaluator = EnhancedEvaluator(assistant)
             results = evaluator.evaluate()
             
-            # Show results
-            st.subheader("📊 Accuracy Evaluation Results")
-            for result in results:
-                with st.expander(f"❓ {result['Question']}"):
-                    st.write(f"**Expected Drug:** {result['Expected Drug']}")
-                    st.write(f"**Keyword Score:** {result['Keyword Score']}")
-                    st.write(f"**Drug Match:** {result['Drug Match']}")
-                    st.write(f"**Answer:** {result['Answer Preview']}")
+            # Display results
+            st.subheader("📊 Enhanced Accuracy Evaluation")
             
-            # Summary
+            # Summary metrics
             total_tests = len(results)
-            avg_score = sum(float(r['Keyword Score'].strip('%'))/100 for r in results) / total_tests
-            st.metric("Average Keyword Accuracy", f"{avg_score:.1%}")
+            keyword_scores = [float(r['Keyword Score'].strip('%'))/100 for r in results]
+            avg_keyword_score = sum(keyword_scores) / total_tests
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Average Keyword Score", f"{avg_keyword_score:.1%}")
+            with col2:
+                drug_matches = sum(1 for r in results if r['Drug Match'] == "✅")
+                st.metric("Drug Match Rate", f"{(drug_matches/total_tests):.1%}")
+            with col3:
+                st.metric("Total Tests", total_tests)
+            
+            # Detailed results
+            for result in results:
+                with st.expander(f"🧪 {result['Question']} ({result['Category']})"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.write(f"**Expected Drug:** {result['Expected Drug']}")
+                        st.write(f"**Keyword Score:** {result['Keyword Score']}")
+                        st.write(f"**Drug Match:** {result['Drug Match']}")
+                        st.write(f"**Relevance:** {result['Relevance']}")
+                    
+                    with col2:
+                        st.write(f"**✅ Found:** {result['Found Keywords']}")
+                        st.write(f"**❌ Missing:** {result['Missing Keywords']}")
+                    
+                    st.write("**Answer:**")
+                    st.info(result['Answer Preview'])
+            
+            # Improvement suggestions
+            st.subheader("💡 Improvement Suggestions")
+            for result in results:
+                if float(result['Keyword Score'].strip('%')) < 80:
+                    st.warning(f"**{result['Question']}** - Improve retrieval untuk keywords: {result['Missing Keywords']}")
 
-# Panggil fungsi evaluasi
-show_evaluation_section()
-
+# Panggil di akhir file
+show_enhanced_evaluation()
 # ==================== END OF FILE ====================
