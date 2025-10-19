@@ -557,41 +557,21 @@ with st.form("chat_form", clear_on_submit=True):
         key="user_input"
     )
     
-    # Custom CSS untuk button
-    st.markdown("""
-    <style>
-        .green-button button {
-            background-color: #90EE90 !important;
-            color: black !important;
-            border: 1px solid #76C776 !important;
-        }
-        .pink-button button {
-            background-color: #FFB6C1 !important;
-            color: black !important;
-            border: 1px solid #FF91A4 !important;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-    
     col_btn1, col_btn2 = st.columns([3, 1])
     
     with col_btn1:
         submit_btn = st.form_submit_button(
             "🚀 Kirim Pertanyaan", 
-            use_container_width=True
+            use_container_width=True,
+            type="primary"  # Button hijau muda untuk Kirim
         )
-        # Terapkan CSS class untuk button kirim
-        if submit_btn:
-            st.markdown('<div class="green-button"></div>', unsafe_allow_html=True)
     
     with col_btn2:
         clear_btn = st.form_submit_button(
             "🗑️ Hapus Chat", 
-            use_container_width=True
+            use_container_width=True,
+            type="secondary"  # Button merah muda untuk Hapus
         )
-        # Terapkan CSS class untuk button hapus
-        if clear_btn:
-            st.markdown('<div class="pink-button"></div>', unsafe_allow_html=True)
 
 if submit_btn and user_input:
     # Add user message
