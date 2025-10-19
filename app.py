@@ -503,12 +503,12 @@ st.markdown("**Silahkan Masukkan Pertanyaan anda tentang obat**")
 st.markdown("### 💬 Percakapan")
 
 # Quick questions untuk testing context
-st.markdown("**Pertanyaan Contoh:**")
+st.markdown("**Pertanyaan Cepat:**")
 
 test_scenarios = [
-    "Apa dosis amoxicillin?",
-    "Untuk dewasa?",
-    "Efek samping?"
+    "Dosis amoxicillin?",
+    "Apa Obat Sakit Kepala?",
+    "Efek samping Paracetamol?"
 ]
 
 cols = st.columns(3)
@@ -570,9 +570,9 @@ else:
                 st.session_state.messages[i-1]["role"] == "user" and
                 len(st.session_state.messages[i-1]["content"].split()) <= 3):
                 st.markdown(f"""
-                <div class="context-indicator">
-                    🎯 Memahami konteks: {assistant.current_context.get('current_drug', '').upper()}
-                </div>
+                # <div class="context-indicator">
+                #     🎯 Memahami konteks: {assistant.current_context.get('current_drug', '').upper()}
+                # </div>
                 """, unsafe_allow_html=True)
             
             st.markdown(f"""
@@ -584,7 +584,7 @@ else:
             
             # Tampilkan sources jika ada
             if "sources" in message and message["sources"]:
-                with st.expander("📚 Sumber Informasi"):
+                with st.expander("📚 Informasi Obat"):
                     for drug in message["sources"]:
                         st.write(f"• **{drug['nama']}** - {drug['golongan']}")
 
