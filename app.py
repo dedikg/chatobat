@@ -510,10 +510,10 @@ st.markdown(
 
 def show_enhanced_evaluation():
     st.sidebar.markdown("---")
-    st.sidebar.subheader("🧪 Enhanced Evaluation")
+    st.sidebar.subheader("🧪 Evaluasi")
     
-    if st.sidebar.button("Run Detailed Accuracy Test"):
-        with st.spinner("Running comprehensive evaluation..."):
+    if st.sidebar.button("Tes Akurasi"):
+        with st.spinner("Running Evaluasi..."):
             
             class EnhancedEvaluator:
                 def __init__(self, assistant):
