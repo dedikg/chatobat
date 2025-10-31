@@ -6,6 +6,7 @@ import numpy as np
 from datetime import datetime
 import time
 import re
+import json
 
 # Konfigurasi halaman
 st.set_page_config(
@@ -41,6 +42,8 @@ class FDADrugAPI:
                 data = response.json()
                 if data.get('results'):
                     return self._parse_fda_data(data['results'][0], generic_name)
+                else:
+                    st.warning(f"⚠️ Data FDA tidak ditemukan untuk: {generic_name}")
             return None
                 
         except Exception as e:
@@ -85,6 +88,10 @@ class TranslationService:
             return text
         
         try:
+            # Skip translation jika teks sudah pendek atau mengandung banyak angka/dosis
+            if len(text) < 50 or any(word in text.lower() for word in ['mg', 'ml', 'tablet', 'capsule', 'day']):
+                return text
+            
             model = genai.GenerativeModel('gemini-2.0-flash')
             
             prompt = f"""
@@ -102,10 +109,56 @@ class TranslationService:
             st.error(f"Error translation: {e}")
             return text
 
+class EnhancedDrugDetector:
+    def __init__(self):
+        # Expanded drug dictionary dengan berbagai nama dan sinonim
+        self.drug_dictionary = {
+            'paracetamol': ['paracetamol', 'acetaminophen', 'panadol', 'sanmol', 'tempra'],
+            'omeprazole': ['omeprazole', 'prilosec', 'losec', 'omepron'],
+            'amoxicillin': ['amoxicillin', 'amoxilin', 'amoxan', 'moxigra'],
+            'ibuprofen': ['ibuprofen', 'proris', 'arthrifen', 'ibufar'],
+            'metformin': ['metformin', 'glucophage', 'metfor', 'diabex'],
+            'atorvastatin': ['atorvastatin', 'lipitor', 'atorva', 'tovast'],
+            'simvastatin': ['simvastatin', 'zocor', 'simvor', 'lipostat'],
+            'loratadine': ['loratadine', 'clarityne', 'loramine', 'allertine'],
+            'aspirin': ['aspirin', 'aspro', 'aspilet', 'cardiprin'],
+            'vitamin c': ['vitamin c', 'ascorbic acid', 'redoxon', 'enervon c'],
+            'lansoprazole': ['lansoprazole', 'prevacid', 'lanzol', 'gastracid'],
+            'esomeprazole': ['esomeprazole', 'nexium', 'esotrax', 'esomep'],
+            'cefixime': ['cefixime', 'suprax', 'cefix', 'fixcef'],
+            'cetirizine': ['cetirizine', 'zyrtec', 'cetrizin', 'allertec'],
+            'dextromethorphan': ['dextromethorphan', 'dmp', 'dextro', 'valtus'],
+            'ambroxol': ['ambroxol', 'mucosolvan', 'ambrox', 'broxol'],
+            'salbutamol': ['salbutamol', 'ventolin', 'salbu', 'asmasolon']
+        }
+    
+    def detect_drug_from_query(self, query: str):
+        """Detect drug name from user query dengan matching yang lebih baik"""
+        query_lower = query.lower()
+        detected_drugs = []
+        
+        for drug_name, aliases in self.drug_dictionary.items():
+            # Check semua alias
+            for alias in aliases:
+                if alias in query_lower:
+                    detected_drugs.append({
+                        'drug_name': drug_name,
+                        'alias_found': alias,
+                        'confidence': 'high' if alias == drug_name else 'medium'
+                    })
+                    break  # Stop setelah menemukan satu match
+        
+        return detected_drugs
+    
+    def get_all_available_drugs(self):
+        """Get list of all available drugs"""
+        return list(self.drug_dictionary.keys())
+
 class SimpleRAGPharmaAssistant:
     def __init__(self):
         self.fda_api = FDADrugAPI()
         self.translator = TranslationService()
+        self.drug_detector = EnhancedDrugDetector()
         self.drugs_cache = {}  # Cache untuk menyimpan data obat yang sudah diambil
         self.current_context = {}
         
@@ -117,11 +170,16 @@ class SimpleRAGPharmaAssistant:
             return self.drugs_cache[drug_key]
         
         # Fetch dari FDA API
+        st.info(f"🔍 Mencari data FDA untuk: {drug_name}...")
         drug_info = self.fda_api.get_drug_info(drug_name)
+        
         if drug_info:
             # Translate fields yang penting
             drug_info = self._translate_drug_info(drug_info)
             self.drugs_cache[drug_key] = drug_info
+            st.success(f"✅ Data ditemukan untuk: {drug_name}")
+        else:
+            st.error(f"❌ Data tidak ditemukan untuk: {drug_name}")
         
         return drug_info
     
@@ -131,41 +189,49 @@ class SimpleRAGPharmaAssistant:
         
         for field in fields_to_translate:
             if field in drug_info and drug_info[field] != "Tidak tersedia":
-                drug_info[field] = self.translator.translate_to_indonesian(drug_info[field])
+                translated = self.translator.translate_to_indonesian(drug_info[field])
+                if translated != drug_info[field]:  # Only update if translation happened
+                    drug_info[field] = translated
         
         return drug_info
     
     def _rag_retrieve(self, query, top_k=3):
-        """Retrieve relevant information menggunakan FDA API"""
+        """Retrieve relevant information menggunakan FDA API dengan drug detection yang lebih baik"""
         query_lower = query.lower()
         results = []
         
-        # Daftar obat umum yang akan dicari
-        common_drugs = [
-            "omeprazole", "amoxicillin", "paracetamol", "ibuprofen", 
-            "metformin", "atorvastatin", "simvastatin", "loratadine",
-            "vitamin c", "aspirin", "lansoprazole", "esomeprazole"
-        ]
+        # Step 1: Detect drugs from query
+        detected_drugs = self.drug_detector.detect_drug_from_query(query)
         
-        # Cari obat yang relevan dengan query
-        for drug_name in common_drugs:
+        if not detected_drugs:
+            # Jika tidak detect, coba obat-obat umum
+            common_drugs = self.drug_detector.get_all_available_drugs()
+        else:
+            # Prioritize detected drugs
+            common_drugs = [drug['drug_name'] for drug in detected_drugs]
+        
+        # Step 2: Cari data untuk setiap drug yang relevan
+        for drug_name in common_drugs[:top_k]:  # Batasi jumlah pencarian
             score = 0
             
-            # Exact name matching
+            # Scoring berdasarkan relevance dengan query
             if drug_name in query_lower:
                 score += 10
             
-            # Partial name matching
-            if drug_name.split()[0] in query_lower:  # untuk "vitamin c" -> "vitamin"
-                score += 5
+            # Check aliases
+            aliases = self.drug_detector.drug_dictionary.get(drug_name, [])
+            for alias in aliases:
+                if alias in query_lower:
+                    score += 8
+                    break
             
             # Question type matching
             question_keywords = {
-                'dosis': ['dosis', 'berapa', 'takaran', 'aturan pakai'],
-                'efek': ['efek samping', 'side effect', 'bahaya'],
-                'kontraindikasi': ['kontra', 'tidak boleh', 'hindari'],
-                'interaksi': ['interaksi', 'bereaksi dengan'],
-                'indikasi': ['untuk apa', 'kegunaan', 'manfaat']
+                'dosis': ['dosis', 'berapa', 'takaran', 'aturan pakai', 'dosis untuk', 'berapa mg'],
+                'efek': ['efek samping', 'side effect', 'bahaya', 'efeknya', 'akibat'],
+                'kontraindikasi': ['kontra', 'tidak boleh', 'hindari', 'larangan', 'kontraindikasi'],
+                'interaksi': ['interaksi', 'bereaksi dengan', 'makanan', 'minuman', 'interaksinya'],
+                'indikasi': ['untuk apa', 'kegunaan', 'manfaat', 'indikasi', 'guna', 'fungsi']
             }
             
             for key, keywords in question_keywords.items():
@@ -175,7 +241,7 @@ class SimpleRAGPharmaAssistant:
             if score > 0:
                 # Fetch data dari FDA API
                 drug_info = self._get_or_fetch_drug_info(drug_name)
-                if drug_info:
+                if drug_info and drug_info.get('indikasi') != "Tidak tersedia":
                     results.append({
                         'score': score,
                         'drug_info': drug_info,
@@ -202,7 +268,8 @@ class SimpleRAGPharmaAssistant:
             context += f"- Efek Samping: {drug_info['efek_samping']}\n"
             context += f"- Kontraindikasi: {drug_info['kontraindikasi']}\n"
             context += f"- Interaksi: {drug_info['interaksi']}\n"
-            context += f"- Peringatan: {drug_info['peringatan']}\n"
+            if drug_info['peringatan'] != "Tidak tersedia":
+                context += f"- Peringatan: {drug_info['peringatan']}\n"
             context += f"- Bentuk Sediaan: {drug_info['bentuk_sediaan']}\n"
             context += "\n"
         
@@ -215,7 +282,8 @@ class SimpleRAGPharmaAssistant:
             retrieved_results = self._rag_retrieve(question)
             
             if not retrieved_results:
-                return "❌ Tidak ditemukan informasi yang relevan dalam database FDA. Coba tanyakan tentang obat-obat umum seperti: omeprazole, amoxicillin, paracetamol, dll.", []
+                available_drugs = ", ".join(self.drug_detector.get_all_available_drugs()[:10])
+                return f"❌ Tidak ditemukan informasi yang relevan dalam database FDA untuk pertanyaan Anda.\n\n💡 **Coba tanyakan tentang:** {available_drugs}", []
             
             # Step 2: Build context dari data FDA
             rag_context = self._build_rag_context(retrieved_results)
@@ -269,6 +337,7 @@ class SimpleRAGPharmaAssistant:
             4. Sertakan peringatan penting dari data FDA
             5. Gunakan bahasa yang mudah dipahami pasien
             6. Jelaskan dalam Bahasa Indonesia
+            7. Berikan jawaban yang langsung menjawab pertanyaan
 
             ## JAWABAN:
             """
@@ -392,7 +461,7 @@ if not st.session_state.messages:
         <h3>👋 Selamat Datang di Asisten Obat FDA</h3>
         <p>Dapatkan informasi obat <strong>langsung dari database resmi FDA</strong> dengan terjemahan otomatis ke Bahasa Indonesia</p>
         <p><strong>💡 Contoh pertanyaan:</strong></p>
-        <p>"Dosis omeprazole?" | "Efek samping amoxicillin?" | "Interaksi obat paracetamol?"</p>
+        <p>"Dosis paracetamol?" | "Efek samping amoxicillin?" | "Interaksi obat omeprazole?"</p>
         <p>"Untuk apa metformin digunakan?" | "Peringatan penggunaan ibuprofen?"</p>
     </div>
     """, unsafe_allow_html=True)
@@ -435,7 +504,7 @@ else:
 with st.form("chat_form", clear_on_submit=True):
     user_input = st.text_input(
         "Tulis pertanyaan Anda tentang obat:",
-        placeholder="Contoh: Apa dosis omeprazole? Efek samping amoxicillin? Interaksi obat?",
+        placeholder="Contoh: Apa dosis paracetamol? Efek samping amoxicillin? Interaksi obat?",
         key="user_input"
     )
     
@@ -493,20 +562,11 @@ if clear_btn:
 
 # Informasi obat yang tersedia
 st.sidebar.markdown("### 💊 Obat yang Tersedia")
-st.sidebar.info("""
+available_drugs = assistant.drug_detector.get_all_available_drugs()
+st.sidebar.info(f"""
 Sistem dapat mencari informasi tentang:
-- Omeprazole
-- Amoxicillin  
-- Paracetamol
-- Ibuprofen
-- Metformin
-- Atorvastatin
-- Simvastatin
-- Loratadine
-- Vitamin C
-- Aspirin
-- Lansoprazole
-- Esomeprazole
+{', '.join(available_drugs[:12])}
+...dan banyak lagi
 """)
 
 # Medical disclaimer
@@ -524,152 +584,3 @@ st.markdown(
     "</div>", 
     unsafe_allow_html=True
 )
-
-# ==================== EVALUATION SECTION ====================
-
-def show_enhanced_evaluation():
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("🧪 Evaluasi FDA API")
-    
-    if st.sidebar.button("Tes Akurasi FDA API"):
-        with st.spinner("Testing FDA API Accuracy..."):
-            
-            class EnhancedEvaluator:
-                def __init__(self, assistant):
-                    self.assistant = assistant
-                    self.test_cases = [
-                        {
-                            'question': 'Apa dosis omeprazole untuk dewasa?',
-                            'expected_keywords': ['mg', 'hari', 'sebelum', 'makan'],
-                            'expected_drug': 'Omeprazole',
-                            'category': 'dosis'
-                        },
-                        {
-                            'question': 'Efek samping amoxicillin?',
-                            'expected_keywords': ['diare', 'mual', 'ruam', 'alergi'],
-                            'expected_drug': 'Amoxicillin', 
-                            'category': 'keamanan'
-                        },
-                        {
-                            'question': 'Untuk apa paracetamol digunakan?',
-                            'expected_keywords': ['nyeri', 'demam', 'sakit', 'kepala'],
-                            'expected_drug': 'Paracetamol',
-                            'category': 'indikasi'
-                        }
-                    ]
-                
-                def evaluate(self):
-                    results = []
-                    for test in self.test_cases:
-                        answer, sources = self.assistant.ask_question(test['question'])
-                        
-                        # Clean answer untuk analysis
-                        clean_answer = self._clean_answer(answer)
-                        
-                        # Scoring
-                        keyword_score = self._keyword_score(clean_answer, test['expected_keywords'])
-                        drug_score = self._drug_score(sources, test['expected_drug'])
-                        
-                        # Found keywords detail
-                        found_keywords = self._get_found_keywords(clean_answer, test['expected_keywords'])
-                        missing_keywords = self._get_missing_keywords(clean_answer, test['expected_keywords'])
-                        
-                        results.append({
-                            'Question': test['question'],
-                            'Category': test['category'],
-                            'Expected Drug': test['expected_drug'],
-                            'Keyword Score': f"{keyword_score:.0%}",
-                            'Drug Match': "✅" if drug_score == 1.0 else "❌",
-                            'Found Keywords': ", ".join(found_keywords) if found_keywords else "None",
-                            'Missing Keywords': ", ".join(missing_keywords) if missing_keywords else "None",
-                            'Answer Preview': clean_answer[:100] + "..." if len(clean_answer) > 100 else clean_answer,
-                            'Source': sources[0]['sumber'] if sources else 'No source'
-                        })
-                    
-                    return results
-                
-                def _clean_answer(self, answer):
-                    """Remove markdown formatting"""
-                    import re
-                    clean = re.sub(r'\*\*(.*?)\*\*', r'\1', answer)
-                    clean = re.sub(r'\*(.*?)\*', r'\1', clean)
-                    clean = re.sub(r'`(.*?)`', r'\1', clean)
-                    clean = re.sub(r'#+\s*', '', clean)
-                    return clean.strip()
-                
-                def _keyword_score(self, answer, keywords):
-                    """Keyword matching"""
-                    answer_lower = answer.lower()
-                    found_keywords = 0
-                    
-                    for keyword in keywords:
-                        if keyword.lower() in answer_lower:
-                            found_keywords += 1
-                    
-                    return found_keywords / len(keywords) if keywords else 0
-                
-                def _get_found_keywords(self, answer, keywords):
-                    """Return list of found keywords"""
-                    answer_lower = answer.lower()
-                    found = []
-                    for keyword in keywords:
-                        if keyword.lower() in answer_lower:
-                            found.append(keyword)
-                    return found
-                
-                def _get_missing_keywords(self, answer, keywords):
-                    """Return list of missing keywords"""
-                    answer_lower = answer.lower()
-                    missing = []
-                    for keyword in keywords:
-                        if keyword.lower() not in answer_lower:
-                            missing.append(keyword)
-                    return missing
-                
-                def _drug_score(self, sources, expected_drug):
-                    """Check if correct drug is retrieved"""
-                    if not sources:
-                        return 0.0
-                    return 1.0 if any(drug['nama'].lower() == expected_drug.lower() for drug in sources) else 0.0
-            
-            # Run evaluation
-            evaluator = EnhancedEvaluator(assistant)
-            results = evaluator.evaluate()
-            
-            # Display results
-            st.subheader("📊 FDA API Accuracy Evaluation")
-            
-            # Summary metrics
-            total_tests = len(results)
-            keyword_scores = [float(r['Keyword Score'].strip('%'))/100 for r in results]
-            avg_keyword_score = sum(keyword_scores) / total_tests
-            
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Average Keyword Score", f"{avg_keyword_score:.1%}")
-            with col2:
-                drug_matches = sum(1 for r in results if r['Drug Match'] == "✅")
-                st.metric("Drug Match Rate", f"{(drug_matches/total_tests):.1%}")
-            with col3:
-                st.metric("Data Source", "FDA API")
-            
-            # Detailed results
-            for result in results:
-                with st.expander(f"🧪 {result['Question']} ({result['Category']})"):
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        st.write(f"**Expected Drug:** {result['Expected Drug']}")
-                        st.write(f"**Keyword Score:** {result['Keyword Score']}")
-                        st.write(f"**Drug Match:** {result['Drug Match']}")
-                        st.write(f"**Source:** {result['Source']}")
-                    
-                    with col2:
-                        st.write(f"**✅ Found:** {result['Found Keywords']}")
-                        st.write(f"**❌ Missing:** {result['Missing Keywords']}")
-                    
-                    st.write("**Answer:**")
-                    st.info(result['Answer Preview'])
-
-# Panggil evaluasi
-show_enhanced_evaluation()
