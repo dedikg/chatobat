@@ -108,9 +108,10 @@ class TranslationService:
 
 class EnhancedDrugDetector:
     def __init__(self):
-        # Expanded drug dictionary dengan berbagai nama dan sinonim
+        # PERBAIKAN: Mapping yang benar antara nama Indonesia dan nama FDA
+        # Format: 'nama_yang_dikenal': ['nama_fda_actual', 'alias1', 'alias2']
         self.drug_dictionary = {
-            'paracetamol': ['paracetamol', 'acetaminophen', 'panadol', 'sanmol', 'tempra'],
+            'paracetamol': ['acetaminophen', 'paracetamol', 'panadol', 'sanmol', 'tempra'],
             'omeprazole': ['omeprazole', 'prilosec', 'losec', 'omepron'],
             'amoxicillin': ['amoxicillin', 'amoxilin', 'amoxan', 'moxigra'],
             'ibuprofen': ['ibuprofen', 'proris', 'arthrifen', 'ibufar'],
@@ -119,18 +120,25 @@ class EnhancedDrugDetector:
             'simvastatin': ['simvastatin', 'zocor', 'simvor', 'lipostat'],
             'loratadine': ['loratadine', 'clarityne', 'loramine', 'allertine'],
             'aspirin': ['aspirin', 'aspro', 'aspilet', 'cardiprin'],
-            'vitamin c': ['vitamin c', 'ascorbic acid', 'redoxon', 'enervon c'],
+            'vitamin c': ['ascorbic acid', 'vitamin c', 'redoxon', 'enervon c'],
             'lansoprazole': ['lansoprazole', 'prevacid', 'lanzol', 'gastracid'],
             'esomeprazole': ['esomeprazole', 'nexium', 'esotrax', 'esomep'],
             'cefixime': ['cefixime', 'suprax', 'cefix', 'fixcef'],
             'cetirizine': ['cetirizine', 'zyrtec', 'cetrizin', 'allertec'],
             'dextromethorphan': ['dextromethorphan', 'dmp', 'dextro', 'valtus'],
             'ambroxol': ['ambroxol', 'mucosolvan', 'ambrox', 'broxol'],
-            'salbutamol': ['salbutamol', 'ventolin', 'salbu', 'asmasolon']
+            'salbutamol': ['albuterol', 'salbutamol', 'ventolin', 'salbu', 'asmasolon']  # Salbutamol = Albuterol di FDA
+        }
+        
+        # Mapping khusus untuk nama FDA
+        self.fda_name_mapping = {
+            'paracetamol': 'acetaminophen',
+            'vitamin c': 'ascorbic acid', 
+            'salbutamol': 'albuterol'
         }
     
     def detect_drug_from_query(self, query: str):
-        """Detect drug name from user query dengan matching yang lebih baik"""
+        """Detect drug name from user query dengan mapping ke nama FDA"""
         query_lower = query.lower()
         detected_drugs = []
         
@@ -138,8 +146,12 @@ class EnhancedDrugDetector:
             # Check semua alias
             for alias in aliases:
                 if alias in query_lower:
+                    # Dapatkan nama FDA yang sebenarnya
+                    fda_name = self.fda_name_mapping.get(drug_name, drug_name)
+                    
                     detected_drugs.append({
                         'drug_name': drug_name,
+                        'fda_name': fda_name,  # Nama yang akan dicari di FDA API
                         'alias_found': alias,
                         'confidence': 'high' if alias == drug_name else 'medium'
                     })
@@ -148,8 +160,12 @@ class EnhancedDrugDetector:
         return detected_drugs
     
     def get_all_available_drugs(self):
-        """Get list of all available drugs"""
+        """Get list of all available drugs (nama yang dikenali user)"""
         return list(self.drug_dictionary.keys())
+    
+    def get_fda_name(self, drug_name: str):
+        """Get FDA name untuk drug tertentu"""
+        return self.fda_name_mapping.get(drug_name, drug_name)
 
 class SimpleRAGPharmaAssistant:
     def __init__(self):
@@ -160,16 +176,24 @@ class SimpleRAGPharmaAssistant:
         self.current_context = {}
         
     def _get_or_fetch_drug_info(self, drug_name: str):
-        """Dapatkan data dari cache atau fetch dari FDA API"""
+        """Dapatkan data dari cache atau fetch dari FDA API dengan nama FDA yang benar"""
         drug_key = drug_name.lower()
         
         if drug_key in self.drugs_cache:
             return self.drugs_cache[drug_key]
         
-        # Fetch dari FDA API
-        drug_info = self.fda_api.get_drug_info(drug_name)
+        # Dapatkan nama FDA yang sebenarnya
+        fda_name = self.drug_detector.get_fda_name(drug_name)
+        
+        # Fetch dari FDA API dengan nama FDA
+        drug_info = self.fda_api.get_drug_info(fda_name)
         
         if drug_info:
+            # Update nama ke nama yang familiar untuk user
+            if drug_name != fda_name:
+                drug_info['nama'] = drug_name.title()
+                drug_info['catatan'] = f"Di FDA dikenal sebagai {fda_name}"
+            
             # Translate fields yang penting
             drug_info = self._translate_drug_info(drug_info)
             self.drugs_cache[drug_key] = drug_info
@@ -189,7 +213,7 @@ class SimpleRAGPharmaAssistant:
         return drug_info
     
     def _rag_retrieve(self, query, top_k=3):
-        """Retrieve relevant information menggunakan FDA API"""
+        """Retrieve relevant information menggunakan FDA API dengan drug detection yang lebih baik"""
         query_lower = query.lower()
         results = []
         
@@ -232,7 +256,7 @@ class SimpleRAGPharmaAssistant:
                     score += 3
             
             if score > 0:
-                # Fetch data dari FDA API
+                # Fetch data dari FDA API dengan nama yang benar
                 drug_info = self._get_or_fetch_drug_info(drug_name)
                 if drug_info and drug_info.get('indikasi') != "Tidak tersedia":
                     results.append({
@@ -255,6 +279,11 @@ class SimpleRAGPharmaAssistant:
         for i, result in enumerate(retrieved_results, 1):
             drug_info = result['drug_info']
             context += f"**OBAT {i}: {drug_info['nama']}**\n"
+            
+            # Tambahkan catatan jika ada nama FDA yang berbeda
+            if 'catatan' in drug_info:
+                context += f"- Catatan: {drug_info['catatan']}\n"
+                
             context += f"- Golongan: {drug_info['golongan']}\n"
             context += f"- Indikasi: {drug_info['indikasi']}\n"
             context += f"- Dosis Dewasa: {drug_info['dosis_dewasa']}\n"
@@ -348,7 +377,7 @@ class SimpleRAGPharmaAssistant:
             }
 
 def main():
-    # Initialize assistant tanpa cache - lebih aman
+    # Initialize assistant
     assistant = SimpleRAGPharmaAssistant()
     
     # Initialize session state
@@ -450,6 +479,7 @@ def main():
             <p><strong>💡 Contoh pertanyaan:</strong></p>
             <p>"Dosis paracetamol?" | "Efek samping amoxicillin?" | "Interaksi obat omeprazole?"</p>
             <p>"Untuk apa metformin digunakan?" | "Peringatan penggunaan ibuprofen?"</p>
+            <p><em>Catatan: Beberapa obat memiliki nama berbeda di FDA (contoh: Paracetamol = Acetaminophen)</em></p>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -475,15 +505,18 @@ def main():
                 if "sources" in message and message["sources"]:
                     with st.expander("📚 Informasi Obat dari FDA"):
                         for drug in message["sources"]:
-                            st.markdown(f"""
+                            card_content = f"""
                             <div class="drug-card">
                                 <h4>💊 {drug['nama']}</h4>
                                 <p><strong>Golongan:</strong> {drug['golongan']}</p>
                                 <p><strong>Merek Dagang:</strong> {drug['merek_dagang']}</p>
                                 <p><strong>Indikasi:</strong> {drug['indikasi'][:150]}...</p>
                                 <p><strong>Bentuk:</strong> {drug['bentuk_sediaan']}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            """
+                            if 'catatan' in drug:
+                                card_content += f"<p><em>{drug['catatan']}</em></p>"
+                            card_content += "</div>"
+                            st.markdown(card_content, unsafe_allow_html=True)
         
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -545,17 +578,18 @@ def main():
         st.session_state.conversation_history = []
         st.rerun()
 
-    # Informasi obat yang tersedia - FIXED: Gunakan drug dictionary langsung
+    # Informasi obat yang tersedia
     st.sidebar.markdown("### 💊 Obat yang Tersedia")
     
-    # Gunakan drug dictionary langsung tanpa melalui assistant
     drug_detector = EnhancedDrugDetector()
     available_drugs = drug_detector.get_all_available_drugs()
     
     st.sidebar.info(f"""
     Sistem dapat mencari informasi tentang:
-    {', '.join(available_drugs[:12])}
-    ...dan {len(available_drugs) - 12} obat lainnya
+    {', '.join(available_drugs[:10])}
+    ...dan {len(available_drugs) - 10} obat lainnya
+    
+    *Beberapa obat memiliki nama berbeda di FDA
     """)
 
     # Medical disclaimer
