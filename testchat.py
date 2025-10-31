@@ -42,8 +42,6 @@ class FDADrugAPI:
                 data = response.json()
                 if data.get('results'):
                     return self._parse_fda_data(data['results'][0], generic_name)
-                else:
-                    st.warning(f"⚠️ Data FDA tidak ditemukan untuk: {generic_name}")
             return None
                 
         except Exception as e:
@@ -106,7 +104,6 @@ class TranslationService:
             return response.text.strip()
             
         except Exception as e:
-            st.error(f"Error translation: {e}")
             return text
 
 class EnhancedDrugDetector:
@@ -146,7 +143,7 @@ class EnhancedDrugDetector:
                         'alias_found': alias,
                         'confidence': 'high' if alias == drug_name else 'medium'
                     })
-                    break  # Stop setelah menemukan satu match
+                    break
         
         return detected_drugs
     
@@ -303,7 +300,6 @@ class SimpleRAGPharmaAssistant:
             return answer, sources
             
         except Exception as e:
-            st.error(f"Error dalam RAG system: {e}")
             return "Maaf, terjadi error dalam sistem. Silakan coba lagi.", []
     
     def _generate_rag_response(self, question, context):
@@ -341,7 +337,6 @@ class SimpleRAGPharmaAssistant:
             return response.text
             
         except Exception as e:
-            st.error(f"⚠️ Error AI: {e}")
             return f"**Informasi dari FDA:**\n\n{context}"
     
     def _update_conversation_context(self, question, answer, sources):
@@ -352,13 +347,9 @@ class SimpleRAGPharmaAssistant:
                 'timestamp': datetime.now()
             }
 
-# Initialize RAG assistant dengan FDA API
-@st.cache_resource
-def load_rag_assistant():
-    return SimpleRAGPharmaAssistant()
-
 def main():
-    assistant = load_rag_assistant()
+    # Initialize assistant tanpa cache - lebih aman
+    assistant = SimpleRAGPharmaAssistant()
     
     # Initialize session state
     if 'messages' not in st.session_state:
@@ -552,17 +543,19 @@ def main():
     if clear_btn:
         st.session_state.messages = []
         st.session_state.conversation_history = []
-        assistant.current_context = {}
-        assistant.drugs_cache = {}
         st.rerun()
 
-    # Informasi obat yang tersedia - DIPINDAH ke dalam main()
+    # Informasi obat yang tersedia - FIXED: Gunakan drug dictionary langsung
     st.sidebar.markdown("### 💊 Obat yang Tersedia")
-    available_drugs = assistant.drug_detector.get_all_available_drugs()
+    
+    # Gunakan drug dictionary langsung tanpa melalui assistant
+    drug_detector = EnhancedDrugDetector()
+    available_drugs = drug_detector.get_all_available_drugs()
+    
     st.sidebar.info(f"""
     Sistem dapat mencari informasi tentang:
     {', '.join(available_drugs[:12])}
-    ...dan banyak lagi
+    ...dan {len(available_drugs) - 12} obat lainnya
     """)
 
     # Medical disclaimer
