@@ -159,7 +159,7 @@ class SimpleRAGPharmaAssistant:
         self.fda_api = FDADrugAPI()
         self.translator = TranslationService()
         self.drug_detector = EnhancedDrugDetector()
-        self.drugs_cache = {}  # Cache untuk menyimpan data obat yang sudah diambil
+        self.drugs_cache = {}
         self.current_context = {}
         
     def _get_or_fetch_drug_info(self, drug_name: str):
@@ -170,16 +170,12 @@ class SimpleRAGPharmaAssistant:
             return self.drugs_cache[drug_key]
         
         # Fetch dari FDA API
-        st.info(f"🔍 Mencari data FDA untuk: {drug_name}...")
         drug_info = self.fda_api.get_drug_info(drug_name)
         
         if drug_info:
             # Translate fields yang penting
             drug_info = self._translate_drug_info(drug_info)
             self.drugs_cache[drug_key] = drug_info
-            st.success(f"✅ Data ditemukan untuk: {drug_name}")
-        else:
-            st.error(f"❌ Data tidak ditemukan untuk: {drug_name}")
         
         return drug_info
     
@@ -190,13 +186,13 @@ class SimpleRAGPharmaAssistant:
         for field in fields_to_translate:
             if field in drug_info and drug_info[field] != "Tidak tersedia":
                 translated = self.translator.translate_to_indonesian(drug_info[field])
-                if translated != drug_info[field]:  # Only update if translation happened
+                if translated != drug_info[field]:
                     drug_info[field] = translated
         
         return drug_info
     
     def _rag_retrieve(self, query, top_k=3):
-        """Retrieve relevant information menggunakan FDA API dengan drug detection yang lebih baik"""
+        """Retrieve relevant information menggunakan FDA API"""
         query_lower = query.lower()
         results = []
         
@@ -211,7 +207,7 @@ class SimpleRAGPharmaAssistant:
             common_drugs = [drug['drug_name'] for drug in detected_drugs]
         
         # Step 2: Cari data untuk setiap drug yang relevan
-        for drug_name in common_drugs[:top_k]:  # Batasi jumlah pencarian
+        for drug_name in common_drugs[:top_k]:
             score = 0
             
             # Scoring berdasarkan relevance dengan query
@@ -313,7 +309,6 @@ class SimpleRAGPharmaAssistant:
     def _generate_rag_response(self, question, context):
         """Generate response menggunakan RAG pattern dengan Gemini"""
         if not gemini_available:
-            # Fallback ke response sederhana
             return f"**Informasi dari FDA:**\n\n{context}"
         
         try:
@@ -362,225 +357,230 @@ class SimpleRAGPharmaAssistant:
 def load_rag_assistant():
     return SimpleRAGPharmaAssistant()
 
-assistant = load_rag_assistant()
-
-# Initialize session state
-if 'messages' not in st.session_state:
-    st.session_state.messages = []
+def main():
+    assistant = load_rag_assistant()
     
-if 'conversation_history' not in st.session_state:
-    st.session_state.conversation_history = []
+    # Initialize session state
+    if 'messages' not in st.session_state:
+        st.session_state.messages = []
+        
+    if 'conversation_history' not in st.session_state:
+        st.session_state.conversation_history = []
 
-# Custom CSS
-st.markdown("""
-<style>
-    .chat-container {
-        max-height: 500px;
-        overflow-y: auto;
-        padding: 20px;
-        border: 1px solid #e0e0e0;
-        border-radius: 10px;
-        background-color: #fafafa;
-        margin-bottom: 20px;
-    }
-    .user-message {
-        background-color: #0078D4;
-        color: white;
-        padding: 12px 16px;
-        border-radius: 18px 18px 4px 18px;
-        margin: 8px 0;
-        max-width: 70%;
-        margin-left: auto;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .bot-message {
-        background-color: white;
-        color: #333;
-        padding: 12px 16px;
-        border-radius: 18px 18px 18px 4px;
-        margin: 8px 0;
-        max-width: 70%;
-        margin-right: auto;
-        border: 1px solid #e0e0e0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .message-time {
-        font-size: 0.75em;
-        opacity: 0.7;
-        margin-top: 5px;
-        text-align: right;
-    }
-    .bot-message .message-time {
-        text-align: left;
-    }
-    .fda-indicator {
-        background-color: #e8f5e8;
-        border: 1px solid #4caf50;
-        border-radius: 8px;
-        padding: 8px 12px;
-        margin: 5px 0;
-        font-size: 0.8em;
-        color: #2e7d32;
-    }
-    .welcome-message {
-        text-align: center;
-        padding: 40px;
-        color: #666;
-        background: white;
-        border-radius: 10px;
-        border: 2px dashed #e0e0e0;
-    }
-    .drug-card {
-        background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 15px;
-        margin: 10px 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# Header
-st.title("💊 Sistem Tanya Jawab Obat - FDA API")
-st.markdown("Sistem informasi obat dengan data langsung dari **FDA API** dan terjemahan menggunakan **Gemini AI**")
-
-# FDA API Indicator
-st.markdown("""
-<div class="fda-indicator">
-    🏥 <strong>DATA RESMI FDA</strong> - Informasi obat langsung dari U.S. Food and Drug Administration
-</div>
-""", unsafe_allow_html=True)
-
-# Chat container
-st.markdown("### 💬 Percakapan")
-
-if not st.session_state.messages:
+    # Custom CSS
     st.markdown("""
-    <div class="welcome-message">
-        <h3>👋 Selamat Datang di Asisten Obat FDA</h3>
-        <p>Dapatkan informasi obat <strong>langsung dari database resmi FDA</strong> dengan terjemahan otomatis ke Bahasa Indonesia</p>
-        <p><strong>💡 Contoh pertanyaan:</strong></p>
-        <p>"Dosis paracetamol?" | "Efek samping amoxicillin?" | "Interaksi obat omeprazole?"</p>
-        <p>"Untuk apa metformin digunakan?" | "Peringatan penggunaan ibuprofen?"</p>
+    <style>
+        .chat-container {
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            background-color: #fafafa;
+            margin-bottom: 20px;
+        }
+        .user-message {
+            background-color: #0078D4;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 18px 18px 4px 18px;
+            margin: 8px 0;
+            max-width: 70%;
+            margin-left: auto;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .bot-message {
+            background-color: white;
+            color: #333;
+            padding: 12px 16px;
+            border-radius: 18px 18px 18px 4px;
+            margin: 8px 0;
+            max-width: 70%;
+            margin-right: auto;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .message-time {
+            font-size: 0.75em;
+            opacity: 0.7;
+            margin-top: 5px;
+            text-align: right;
+        }
+        .bot-message .message-time {
+            text-align: left;
+        }
+        .fda-indicator {
+            background-color: #e8f5e8;
+            border: 1px solid #4caf50;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin: 5px 0;
+            font-size: 0.8em;
+            color: #2e7d32;
+        }
+        .welcome-message {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            background: white;
+            border-radius: 10px;
+            border: 2px dashed #e0e0e0;
+        }
+        .drug-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Header
+    st.title("💊 Sistem Tanya Jawab Obat - FDA API")
+    st.markdown("Sistem informasi obat dengan data langsung dari **FDA API** dan terjemahan menggunakan **Gemini AI**")
+
+    # FDA API Indicator
+    st.markdown("""
+    <div class="fda-indicator">
+        🏥 <strong>DATA RESMI FDA</strong> - Informasi obat langsung dari U.S. Food and Drug Administration
     </div>
     """, unsafe_allow_html=True)
-else:
-    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
-    
-    for i, message in enumerate(st.session_state.messages):
-        if message["role"] == "user":
-            st.markdown(f"""
-            <div class="user-message">
-                <div>{message["content"]}</div>
-                <div class="message-time">{message["timestamp"]}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div class="bot-message">
-                <div>{message["content"]}</div>
-                <div class="message-time">{message["timestamp"]} • Sumber: FDA API</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Tampilkan sources jika ada
-            if "sources" in message and message["sources"]:
-                with st.expander("📚 Informasi Obat dari FDA"):
-                    for drug in message["sources"]:
-                        st.markdown(f"""
-                        <div class="drug-card">
-                            <h4>💊 {drug['nama']}</h4>
-                            <p><strong>Golongan:</strong> {drug['golongan']}</p>
-                            <p><strong>Merek Dagang:</strong> {drug['merek_dagang']}</p>
-                            <p><strong>Indikasi:</strong> {drug['indikasi'][:150]}...</p>
-                            <p><strong>Bentuk:</strong> {drug['bentuk_sediaan']}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
-# Input area
-with st.form("chat_form", clear_on_submit=True):
-    user_input = st.text_input(
-        "Tulis pertanyaan Anda tentang obat:",
-        placeholder="Contoh: Apa dosis paracetamol? Efek samping amoxicillin? Interaksi obat?",
-        key="user_input"
-    )
-    
-    col_btn1, col_btn2 = st.columns([3, 1])
-    
-    with col_btn1:
-        submit_btn = st.form_submit_button(
-            "🚀 Tanya FDA API", 
-            use_container_width=True
-        )
-    
-    with col_btn2:
-        clear_btn = st.form_submit_button(
-            "🗑️ Hapus Chat", 
-            use_container_width=True
-        )
+    # Chat container
+    st.markdown("### 💬 Percakapan")
 
-if submit_btn and user_input:
-    # Add user message
-    st.session_state.messages.append({
-        "role": "user", 
-        "content": user_input,
-        "timestamp": datetime.now().strftime("%H:%M")
-    })
-    
-    # Get RAG response dari FDA API
-    with st.spinner("🔍 Mengakses FDA API..."):
-        answer, sources = assistant.ask_question(user_input)
+    if not st.session_state.messages:
+        st.markdown("""
+        <div class="welcome-message">
+            <h3>👋 Selamat Datang di Asisten Obat FDA</h3>
+            <p>Dapatkan informasi obat <strong>langsung dari database resmi FDA</strong> dengan terjemahan otomatis ke Bahasa Indonesia</p>
+            <p><strong>💡 Contoh pertanyaan:</strong></p>
+            <p>"Dosis paracetamol?" | "Efek samping amoxicillin?" | "Interaksi obat omeprazole?"</p>
+            <p>"Untuk apa metformin digunakan?" | "Peringatan penggunaan ibuprofen?"</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="chat-container">', unsafe_allow_html=True)
         
-        # Add to conversation history
-        st.session_state.conversation_history.append({
-            'timestamp': datetime.now(),
-            'question': user_input,
-            'answer': answer,
-            'sources': [drug['nama'] for drug in sources],
-            'source': 'FDA API'
-        })
+        for i, message in enumerate(st.session_state.messages):
+            if message["role"] == "user":
+                st.markdown(f"""
+                <div class="user-message">
+                    <div>{message["content"]}</div>
+                    <div class="message-time">{message["timestamp"]}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class="bot-message">
+                    <div>{message["content"]}</div>
+                    <div class="message-time">{message["timestamp"]} • Sumber: FDA API</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Tampilkan sources jika ada
+                if "sources" in message and message["sources"]:
+                    with st.expander("📚 Informasi Obat dari FDA"):
+                        for drug in message["sources"]:
+                            st.markdown(f"""
+                            <div class="drug-card">
+                                <h4>💊 {drug['nama']}</h4>
+                                <p><strong>Golongan:</strong> {drug['golongan']}</p>
+                                <p><strong>Merek Dagang:</strong> {drug['merek_dagang']}</p>
+                                <p><strong>Indikasi:</strong> {drug['indikasi'][:150]}...</p>
+                                <p><strong>Bentuk:</strong> {drug['bentuk_sediaan']}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
         
-        # Add bot message
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Input area
+    with st.form("chat_form", clear_on_submit=True):
+        user_input = st.text_input(
+            "Tulis pertanyaan Anda tentang obat:",
+            placeholder="Contoh: Apa dosis paracetamol? Efek samping amoxicillin? Interaksi obat?",
+            key="user_input"
+        )
+        
+        col_btn1, col_btn2 = st.columns([3, 1])
+        
+        with col_btn1:
+            submit_btn = st.form_submit_button(
+                "🚀 Tanya FDA API", 
+                use_container_width=True
+            )
+        
+        with col_btn2:
+            clear_btn = st.form_submit_button(
+                "🗑️ Hapus Chat", 
+                use_container_width=True
+            )
+
+    if submit_btn and user_input:
+        # Add user message
         st.session_state.messages.append({
-            "role": "bot", 
-            "content": answer,
-            "sources": sources,
+            "role": "user", 
+            "content": user_input,
             "timestamp": datetime.now().strftime("%H:%M")
         })
-    
-    st.rerun()
+        
+        # Get RAG response dari FDA API
+        with st.spinner("🔍 Mengakses FDA API..."):
+            answer, sources = assistant.ask_question(user_input)
+            
+            # Add to conversation history
+            st.session_state.conversation_history.append({
+                'timestamp': datetime.now(),
+                'question': user_input,
+                'answer': answer,
+                'sources': [drug['nama'] for drug in sources],
+                'source': 'FDA API'
+            })
+            
+            # Add bot message
+            st.session_state.messages.append({
+                "role": "bot", 
+                "content": answer,
+                "sources": sources,
+                "timestamp": datetime.now().strftime("%H:%M")
+            })
+        
+        st.rerun()
 
-if clear_btn:
-    st.session_state.messages = []
-    st.session_state.conversation_history = []
-    assistant.current_context = {}
-    assistant.drugs_cache = {}  # Clear cache juga
-    st.rerun()
+    if clear_btn:
+        st.session_state.messages = []
+        st.session_state.conversation_history = []
+        assistant.current_context = {}
+        assistant.drugs_cache = {}
+        st.rerun()
 
-# Informasi obat yang tersedia
-st.sidebar.markdown("### 💊 Obat yang Tersedia")
-available_drugs = assistant.drug_detector.get_all_available_drugs()
-st.sidebar.info(f"""
-Sistem dapat mencari informasi tentang:
-{', '.join(available_drugs[:12])}
-...dan banyak lagi
-""")
+    # Informasi obat yang tersedia - DIPINDAH ke dalam main()
+    st.sidebar.markdown("### 💊 Obat yang Tersedia")
+    available_drugs = assistant.drug_detector.get_all_available_drugs()
+    st.sidebar.info(f"""
+    Sistem dapat mencari informasi tentang:
+    {', '.join(available_drugs[:12])}
+    ...dan banyak lagi
+    """)
 
-# Medical disclaimer
-st.warning("""
-**⚠️ Peringatan Medis:** Informasi ini berasal dari database FDA AS dan untuk edukasi saja. 
-Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat. 
-Obat mungkin memiliki nama merek berbeda di Indonesia.
-""")
+    # Medical disclaimer
+    st.warning("""
+    **⚠️ Peringatan Medis:** Informasi ini berasal dari database FDA AS dan untuk edukasi saja. 
+    Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat. 
+    Obat mungkin memiliki nama merek berbeda di Indonesia.
+    """)
 
-# Footer
-st.markdown("---")
-st.markdown(
-    "<div style='text-align: center; color: #666;'>"
-    "Sistem Tanya Jawab Obat - Data dari FDA API dengan terjemahan Gemini AI"
-    "</div>", 
-    unsafe_allow_html=True
-)
+    # Footer
+    st.markdown("---")
+    st.markdown(
+        "<div style='text-align: center; color: #666;'>"
+        "Sistem Tanya Jawab Obat - Data dari FDA API dengan terjemahan Gemini AI"
+        "</div>", 
+        unsafe_allow_html=True
+    )
+
+# Panggil main function
+if __name__ == "__main__":
+    main()
