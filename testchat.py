@@ -7,10 +7,11 @@ from datetime import datetime
 import time
 import re
 import json
+import random
 
 # Konfigurasi halaman
 st.set_page_config(
-    page_title="Sistem Tanya Jawab Informasi Obat - FDA API",
+    page_title="Sistem Tanya Jawab Obat - FDA API dengan RAG",
     page_icon="💊",
     layout="wide"
 )
@@ -25,107 +26,91 @@ except Exception as e:
     gemini_available = False
 
 # ===========================================
-# KELAS EVALUASI RAG YANG DIPERBAIKI
+# KELAS EVALUASI RAG YANG DIPERBAIKI (2 METRIK SAJA)
 # ===========================================
-class RAGEvaluator:
+class FocusedRAGEvaluator:
     def __init__(self, assistant):
         self.assistant = assistant
         
-        # PERBAIKAN 1: Test set yang lebih realistis berdasarkan data FDA
-        # Hanya berisi pertanyaan yang kemungkinan besar ada di FDA
+        # Test set fokus pada 2 metrik: MRR & Faithfulness
         self.test_set = [
             {
                 "id": 1,
                 "question": "Apa dosis paracetamol?",
                 "expected_drug": "paracetamol",
                 "question_type": "dosis",
-                "expected_info_type": "dosage_and_administration"
+                "key_info_expected": ["dosis", "mg", "paracetamol"]
             },
             {
                 "id": 2,
                 "question": "Efek samping amoxicillin?",
                 "expected_drug": "amoxicillin",
                 "question_type": "efek_samping",
-                "expected_info_type": "adverse_reactions"
+                "key_info_expected": ["efek", "samping", "amoxicillin"]
             },
             {
                 "id": 3,
                 "question": "Untuk apa omeprazole digunakan?",
                 "expected_drug": "omeprazole",
                 "question_type": "indikasi",
-                "expected_info_type": "indications_and_usage"
+                "key_info_expected": ["indikasi", "kegunaan", "omeprazole"]
             },
             {
                 "id": 4,
                 "question": "Apa kontraindikasi ibuprofen?",
                 "expected_drug": "ibuprofen",
                 "question_type": "kontraindikasi",
-                "expected_info_type": "contraindications"
+                "key_info_expected": ["kontraindikasi", "ibuprofen"]
             },
             {
                 "id": 5,
                 "question": "Interaksi obat metformin?",
                 "expected_drug": "metformin",
                 "question_type": "interaksi",
-                "expected_info_type": "drug_interactions"
+                "key_info_expected": ["interaksi", "metformin"]
             },
             {
                 "id": 6,
                 "question": "Berapa dosis atorvastatin?",
                 "expected_drug": "atorvastatin",
                 "question_type": "dosis",
-                "expected_info_type": "dosage_and_administration"
+                "key_info_expected": ["dosis", "atorvastatin"]
             },
             {
                 "id": 7,
                 "question": "Efek samping simvastatin?",
                 "expected_drug": "simvastatin",
                 "question_type": "efek_samping",
-                "expected_info_type": "adverse_reactions"
+                "key_info_expected": ["efek", "samping", "simvastatin"]
             },
             {
                 "id": 8,
                 "question": "Kegunaan lansoprazole?",
                 "expected_drug": "lansoprazole",
                 "question_type": "indikasi",
-                "expected_info_type": "indications_and_usage"
+                "key_info_expected": ["kegunaan", "lansoprazole"]
             },
             {
                 "id": 9,
                 "question": "Peringatan penggunaan aspirin?",
                 "expected_drug": "aspirin",
                 "question_type": "peringatan",
-                "expected_info_type": "warnings"
+                "key_info_expected": ["peringatan", "aspirin"]
             },
             {
                 "id": 10,
-                "question": "Dosis cetirizine?",
+                "question": "Dosis cetirizine untuk dewasa?",
                 "expected_drug": "cetirizine",
                 "question_type": "dosis",
-                "expected_info_type": "dosage_and_administration"
+                "key_info_expected": ["dosis", "cetirizine", "dewasa"]
             }
         ]
-        
-        # Mapping antara question type dan keywords yang diharapkan
-        self.question_type_keywords = {
-            "dosis": ["mg", "dosis", "tablet", "kapsul", "sekali", "hari", "penggunaan", "diberikan"],
-            "efek_samping": ["efek", "samping", "reaksi", "adverse", "gejala", "mual", "pusing", "diare"],
-            "indikasi": ["untuk", "mengobati", "indikasi", "kegunaan", "penggunaan", "terapi", "penyakit"],
-            "kontraindikasi": ["tidak", "boleh", "kontra", "hindari", "larangan", "dilarang", "jangan"],
-            "interaksi": ["interaksi", "bereaksi", "bersamaan", "kombinasi", "makanan", "minuman", "alkohol"],
-            "peringatan": ["peringatan", "warning", "hati-hati", "waspada", "perhatian", "risiko"]
-        }
-        
-        # Kata-kata penting untuk semantic similarity
-        self.important_words = ["mg", "dosis", "efek", "samping", "indikasi", "kontraindikasi", 
-                              "interaksi", "peringatan", "FDA", "obat", "penggunaan", "tablet",
-                              "reaksi", "gejala", "mengobati", "hindari", "kombinasi", "risiko"]
     
     # ===========================================
     # METRIK 1: MEAN RECIPROCAL RANK (MRR)
     # ===========================================
     def calculate_mrr(self):
-        """Hitung MRR untuk drug detection accuracy"""
+        """Hitung MRR untuk evaluasi komponen RETRIEVAL RAG"""
         reciprocal_ranks = []
         
         for test in self.test_set:
@@ -149,214 +134,63 @@ class RAGEvaluator:
     # METRIK 2: FAITHFULNESS
     # ===========================================
     def calculate_faithfulness(self):
-        """Hitung kesetiaan jawaban terhadap sumber FDA"""
+        """Hitung Faithfulness untuk evaluasi komponen GENERATION RAG"""
         faithful_scores = []
         
         for test in self.test_set:
             answer, sources = self.assistant.ask_question(test["question"])
             answer_lower = answer.lower()
             
-            # Check 1: Apakah ada sumber FDA?
-            has_source = sources and len(sources) > 0
+            # Kriteria Faithfulness untuk aplikasi medis
+            criteria_scores = []
             
-            # Check 2: Apakah jawaban mengandung referensi FDA?
-            fda_indicators = ["fda", "food and drug administration", "data resmi", "sumber resmi"]
+            # 1. Sumber Data (40%)
+            if sources and len(sources) > 0:
+                criteria_scores.append(0.4)
+            else:
+                criteria_scores.append(0)
+            
+            # 2. Referensi FDA dalam jawaban (25%)
+            fda_indicators = ["fda", "food and drug administration", "data resmi fda", "sumber fda"]
             has_fda_ref = any(indicator in answer_lower for indicator in fda_indicators)
+            criteria_scores.append(0.25 if has_fda_ref else 0)
             
-            # Check 3: Apakah jawaban mengandung disclaimer?
-            disclaimer_indicators = ["konsultasi", "dokter", "apoteker", "sebelum menggunakan", "peringatan medis"]
-            has_disclaimer = any(indicator in answer_lower for indicator in disclaimer_indicators)
-            
-            # Check 4: Apakah jawaban mengandung klaim berlebihan?
-            # Kata-kata yang menunjukkan informasi fiktif atau terlalu umum
+            # 3. Tidak ada informasi fiktif (20%)
             fictional_indicators = [
-                "menurut penelitian saya", "biasanya", "umumnya", "seharusnya", 
-                "kemungkinan besar", "rata-rata", "pada umumnya", "kebanyakan"
+                "menurut saya", "biasanya", "umumnya", "seharusnya", 
+                "kemungkinan besar", "menurut pengetahuan saya"
             ]
             has_fictional = any(indicator in answer_lower for indicator in fictional_indicators)
+            criteria_scores.append(0.20 if not has_fictional else 0)
             
-            # Check 5: Apakah jawaban mengakui keterbatasan data?
-            limitation_indicators = ["tidak tersedia", "tidak ditemukan", "data terbatas", "informasi tidak lengkap"]
-            acknowledges_limitation = any(indicator in answer_lower for indicator in limitation_indicators)
+            # 4. Disclaimer medis (15%)
+            disclaimer_indicators = ["konsultasi", "dokter", "apoteker", "sebelum menggunakan"]
+            has_disclaimer = any(indicator in answer_lower for indicator in disclaimer_indicators)
+            criteria_scores.append(0.15 if has_disclaimer else 0)
             
-            # Skoring
-            score = 0
-            
-            if has_source:
-                score += 0.4  # 40% untuk memiliki sumber
-            
-            if has_fda_ref:
-                score += 0.2  # 20% untuk menyebut FDA
-            
-            if has_disclaimer:
-                score += 0.1  # 10% untuk disclaimer medis
-            
-            if not has_fictional:
-                score += 0.2  # 20% untuk tidak membuat klaim fiktif
-            
-            if acknowledges_limitation:
-                score += 0.1  # 10% untuk mengakui keterbatasan data
-            
-            faithful_scores.append(min(score, 1.0))  # Maksimal 1.0
+            # Total score untuk test case ini
+            total_score = sum(criteria_scores)
+            faithful_scores.append(min(total_score, 1.0))
         
         return np.mean(faithful_scores) if faithful_scores else 0
     
-    # ===========================================
-    # METRIK 3: ANSWER RELEVANCY
-    # ===========================================
-    def calculate_answer_relevancy(self):
-        """Hitung relevansi jawaban terhadap pertanyaan"""
-        relevancy_scores = []
-        
-        for test in self.test_set:
-            answer, _ = self.assistant.ask_question(test["question"])
-            answer_lower = answer.lower()
-            
-            # Dapatkan keywords berdasarkan question type
-            q_type = test["question_type"]
-            keywords = self.question_type_keywords.get(q_type, [])
-            
-            # Tambahkan drug name sebagai keyword
-            drug_name = test["expected_drug"]
-            keywords.append(drug_name)
-            
-            # Hitung keyword matches
-            matches = 0
-            for keyword in keywords:
-                if keyword in answer_lower:
-                    matches += 1
-            
-            # Normalize score
-            total_keywords = len(keywords)
-            score = matches / total_keywords if total_keywords > 0 else 0
-            
-            # Bonus jika jawaban langsung menjawab pertanyaan
-            question_words = test["question"].lower().split()
-            question_keywords = [word for word in question_words if len(word) > 3]
-            question_matches = sum(1 for word in question_keywords if word in answer_lower)
-            
-            if len(question_keywords) > 0:
-                question_score = question_matches / len(question_keywords)
-                score = (score * 0.7) + (question_score * 0.3)  # Weighted average
-            
-            # Penalty jika jawaban terlalu pendek atau generic
-            if len(answer) < 50 and "tidak tersedia" not in answer_lower:
-                score *= 0.8  # Penalty 20%
-            
-            relevancy_scores.append(min(score, 1.0))
-        
-        return np.mean(relevancy_scores) if relevancy_scores else 0
-    
-    # ===========================================
-    # METRIK 4: SEMANTIC SIMILARITY
-    # ===========================================
-    def calculate_semantic_similarity(self):
-        """Hitung kesamaan semantik dengan jawaban ideal"""
-        similarity_scores = []
-        
-        for test in self.test_set:
-            answer, _ = self.assistant.ask_question(test["question"])
-            
-            # Generate expected answer template berdasarkan question type
-            expected_answer = self._generate_expected_answer(test)
-            
-            if expected_answer:
-                # Hitung similarity
-                score = self._calculate_text_similarity(answer, expected_answer)
-                similarity_scores.append(score)
-        
-        return np.mean(similarity_scores) if similarity_scores else 0
-    
-    def _generate_expected_answer(self, test):
-        """Generate template jawaban ideal berdasarkan tipe pertanyaan"""
-        drug = test["expected_drug"].title()
-        q_type = test["question_type"]
-        
-        templates = {
-            "dosis": f"Informasi dosis {drug} tersedia dalam data FDA. Dosis yang tepat tergantung kondisi pasien dan harus ditentukan oleh tenaga medis.",
-            "efek_samping": f"Efek samping {drug} tercatat dalam database FDA. Pasien disarankan melaporkan efek samping yang tidak diinginkan.",
-            "indikasi": f"{drug} diindikasikan untuk kondisi tertentu sesuai data FDA. Penggunaan harus sesuai resep dokter.",
-            "kontraindikasi": f"Kontraindikasi {drug} tercantum dalam informasi FDA. Pasien dengan kondisi tertentu tidak boleh menggunakan obat ini.",
-            "interaksi": f"Interaksi {drug} dengan obat lain terdapat dalam data FDA. Konsultasi dengan apoteker diperlukan sebelum penggunaan bersamaan.",
-            "peringatan": f"Peringatan penggunaan {drug} tersedia dalam informasi FDA. Bacalah seluruh informasi sebelum penggunaan."
-        }
-        
-        return templates.get(q_type, f"Informasi tentang {drug} tersedia dalam database FDA.")
-    
-    def _calculate_text_similarity(self, text1, text2):
-        """Hitung similarity antara dua teks dengan metode hybrid"""
-        # Preprocess text
-        text1_lower = text1.lower()
-        text2_lower = text2.lower()
-        
-        # 1. Jaccard Similarity pada kata-kata
-        words1 = set(re.findall(r'\w+', text1_lower))
-        words2 = set(re.findall(r'\w+', text2_lower))
-        
-        if not words1 or not words2:
-            return 0
-        
-        intersection = words1.intersection(words2)
-        union = words1.union(words2)
-        
-        jaccard_score = len(intersection) / len(union) if union else 0
-        
-        # 2. Bonus untuk kata-kata penting yang match
-        important_matches = sum(1 for word in self.important_words 
-                              if word in words1 and word in words2)
-        
-        important_bonus = min(important_matches * 0.05, 0.3)  # Maksimal bonus 30%
-        
-        # 3. Penalty jika banyak kata yang tidak relevan
-        irrelevant_words = ["hello", "hi", "terima kasih", "silahkan", "bisa", "membantu"]
-        irrelevant_count = sum(1 for word in irrelevant_words if word in text1_lower)
-        irrelevant_penalty = min(irrelevant_count * 0.02, 0.1)  # Maksimal penalty 10%
-        
-        # Final score
-        final_score = jaccard_score + important_bonus - irrelevant_penalty
-        
-        return max(0, min(final_score, 1.0))
-    
-    # ===========================================
-    # METODE UTAMA EVALUASI
-    # ===========================================
-    def run_complete_evaluation(self):
-        """Jalankan semua evaluasi dan return hasil"""
+    def run_evaluation(self):
+        """Jalankan evaluasi 2 metrik utama RAG"""
         try:
-            # Hitung semua metrik
+            # Hitung kedua metrik
             mrr_score = self.calculate_mrr()
             faithfulness_score = self.calculate_faithfulness()
-            relevancy_score = self.calculate_answer_relevancy()
-            similarity_score = self.calculate_semantic_similarity()
             
-            # Compile results
+            # Kompilasi hasil
             results = {
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "total_test_cases": len(self.test_set),
                 "MRR": float(mrr_score),
                 "Faithfulness": float(faithfulness_score),
-                "Answer_Relevancy": float(relevancy_score),
-                "Semantic_Similarity": float(similarity_score)
+                "RAG_Score": float((mrr_score + faithfulness_score) / 2)  # Simple average
             }
             
-            # Hitung overall score (weighted average)
-            weights = {
-                "MRR": 0.3,           # 30% - Paling penting untuk drug detection
-                "Faithfulness": 0.4,  # 40% - Sangat penting untuk aplikasi medis
-                "Answer_Relevancy": 0.2,  # 20% - Penting untuk user experience
-                "Semantic_Similarity": 0.1   # 10% - Tambahan untuk kualitas jawaban
-            }
-            
-            weighted_sum = (
-                results["MRR"] * weights["MRR"] +
-                results["Faithfulness"] * weights["Faithfulness"] +
-                results["Answer_Relevancy"] * weights["Answer_Relevancy"] +
-                results["Semantic_Similarity"] * weights["Semantic_Similarity"]
-            )
-            
-            results["Overall_Score"] = float(weighted_sum)
-            
-            # Simpan detail test case results
+            # Simpan detail test case untuk analisis
             results["test_case_details"] = self._get_test_case_details()
             
             return results
@@ -368,9 +202,7 @@ class RAGEvaluator:
                 "error": str(e),
                 "MRR": 0,
                 "Faithfulness": 0,
-                "Answer_Relevancy": 0,
-                "Semantic_Similarity": 0,
-                "Overall_Score": 0
+                "RAG_Score": 0
             }
     
     def _get_test_case_details(self):
@@ -380,18 +212,26 @@ class RAGEvaluator:
         for test in self.test_set:
             answer, sources = self.assistant.ask_question(test["question"])
             
-            # Deteksi drug
+            # Deteksi drug untuk MRR
             detected_drugs = self.assistant.drug_detector.detect_drug_from_query(test["question"])
-            detected_drug_names = [drug['drug_name'] for drug in detected_drugs]
+            
+            # Analisis faithfulness
+            answer_lower = answer.lower()
+            has_source = bool(sources)
+            has_fda_ref = any(indicator in answer_lower for indicator in ["fda", "food and drug administration"])
+            has_disclaimer = any(indicator in answer_lower for indicator in ["dokter", "apoteker", "konsultasi"])
             
             detail = {
                 "test_id": test["id"],
                 "question": test["question"],
                 "expected_drug": test["expected_drug"],
-                "detected_drugs": detected_drug_names,
-                "answer_preview": answer[:100] + "..." if len(answer) > 100 else answer,
-                "has_sources": bool(sources),
-                "source_count": len(sources) if sources else 0
+                "detected_drugs": [drug['drug_name'] for drug in detected_drugs],
+                "detection_correct": test["expected_drug"] in [drug['drug_name'] for drug in detected_drugs],
+                "answer_preview": answer[:150] + "..." if len(answer) > 150 else answer,
+                "has_sources": has_source,
+                "source_count": len(sources) if sources else 0,
+                "has_fda_reference": has_fda_ref,
+                "has_medical_disclaimer": has_disclaimer
             }
             
             details.append(detail)
@@ -485,8 +325,6 @@ class TranslationService:
 
 class EnhancedDrugDetector:
     def __init__(self):
-        # PERBAIKAN: Mapping yang benar antara nama Indonesia dan nama FDA
-        # Format: 'nama_yang_dikenal': ['nama_fda_actual', 'alias1', 'alias2']
         self.drug_dictionary = {
             'paracetamol': ['acetaminophen', 'paracetamol', 'panadol', 'sanmol', 'tempra'],
             'omeprazole': ['omeprazole', 'prilosec', 'losec', 'omepron'],
@@ -507,7 +345,6 @@ class EnhancedDrugDetector:
             'salbutamol': ['albuterol', 'salbutamol', 'ventolin', 'salbu', 'asmasolon']
         }
         
-        # Mapping khusus untuk nama FDA
         self.fda_name_mapping = {
             'paracetamol': 'acetaminophen',
             'vitamin c': 'ascorbic acid', 
@@ -520,12 +357,9 @@ class EnhancedDrugDetector:
         detected_drugs = []
         
         for drug_name, aliases in self.drug_dictionary.items():
-            # Check semua alias
             for alias in aliases:
                 if alias in query_lower:
-                    # Dapatkan nama FDA yang sebenarnya
                     fda_name = self.fda_name_mapping.get(drug_name, drug_name)
-                    
                     detected_drugs.append({
                         'drug_name': drug_name,
                         'fda_name': fda_name,
@@ -559,19 +393,14 @@ class SimpleRAGPharmaAssistant:
         if drug_key in self.drugs_cache:
             return self.drugs_cache[drug_key]
         
-        # Dapatkan nama FDA yang sebenarnya
         fda_name = self.drug_detector.get_fda_name(drug_name)
-        
-        # Fetch dari FDA API dengan nama FDA
         drug_info = self.fda_api.get_drug_info(fda_name)
         
         if drug_info:
-            # Update nama ke nama yang familiar untuk user
             if drug_name != fda_name:
                 drug_info['nama'] = drug_name.title()
                 drug_info['catatan'] = f"Di FDA dikenal sebagai {fda_name}"
             
-            # Translate fields yang penting
             drug_info = self._translate_drug_info(drug_info)
             self.drugs_cache[drug_key] = drug_info
         
@@ -594,32 +423,25 @@ class SimpleRAGPharmaAssistant:
         query_lower = query.lower()
         results = []
         
-        # Step 1: Detect drugs from query
         detected_drugs = self.drug_detector.detect_drug_from_query(query)
         
         if not detected_drugs:
-            # Jika tidak detect, coba obat-obat umum
             common_drugs = self.drug_detector.get_all_available_drugs()
         else:
-            # Prioritize detected drugs
             common_drugs = [drug['drug_name'] for drug in detected_drugs]
         
-        # Step 2: Cari data untuk setiap drug yang relevan
         for drug_name in common_drugs[:top_k]:
             score = 0
             
-            # Scoring berdasarkan relevance dengan query
             if drug_name in query_lower:
                 score += 10
             
-            # Check aliases
             aliases = self.drug_detector.drug_dictionary.get(drug_name, [])
             for alias in aliases:
                 if alias in query_lower:
                     score += 8
                     break
             
-            # Question type matching
             question_keywords = {
                 'dosis': ['dosis', 'berapa', 'takaran', 'aturan pakai', 'dosis untuk', 'berapa mg'],
                 'efek': ['efek samping', 'side effect', 'bahaya', 'efeknya', 'akibat'],
@@ -633,7 +455,6 @@ class SimpleRAGPharmaAssistant:
                     score += 3
             
             if score > 0:
-                # Fetch data dari FDA API dengan nama yang benar
                 drug_info = self._get_or_fetch_drug_info(drug_name)
                 if drug_info and drug_info.get('indikasi') != "Tidak tersedia":
                     results.append({
@@ -642,7 +463,6 @@ class SimpleRAGPharmaAssistant:
                         'drug_id': drug_name
                     })
         
-        # Sort by score dan ambil top_k
         results.sort(key=lambda x: x['score'], reverse=True)
         return results[:top_k]
     
@@ -657,7 +477,6 @@ class SimpleRAGPharmaAssistant:
             drug_info = result['drug_info']
             context += f"**OBAT {i}: {drug_info['nama']}**\n"
             
-            # Tambahkan catatan jika ada nama FDA yang berbeda
             if 'catatan' in drug_info:
                 context += f"- Catatan: {drug_info['catatan']}\n"
                 
@@ -677,20 +496,15 @@ class SimpleRAGPharmaAssistant:
     def ask_question(self, question):
         """Main RAG interface dengan FDA API"""
         try:
-            # Step 1: Retrieve relevant information dari FDA API
             retrieved_results = self._rag_retrieve(question)
             
             if not retrieved_results:
                 available_drugs = ", ".join(self.drug_detector.get_all_available_drugs()[:10])
                 return f"❌ Tidak ditemukan informasi yang relevan dalam database FDA untuk pertanyaan Anda.\n\n💡 **Coba tanyakan tentang:** {available_drugs}", []
             
-            # Step 2: Build context dari data FDA
             rag_context = self._build_rag_context(retrieved_results)
-            
-            # Step 3: Generate response dengan RAG
             answer = self._generate_rag_response(question, rag_context)
             
-            # Step 4: Get sources
             sources = []
             seen_drug_names = set()
             
@@ -700,7 +514,6 @@ class SimpleRAGPharmaAssistant:
                     sources.append(result['drug_info'])
                     seen_drug_names.add(drug_name)
             
-            # Update context
             self._update_conversation_context(question, answer, sources)
             
             return answer, sources
@@ -718,25 +531,22 @@ class SimpleRAGPharmaAssistant:
             
             prompt = f"""
             # PERAN: Asisten Farmasi Profesional
-            # TUGAS: Jawab pertanyaan tentang obat menggunakan informasi FDA yang disediakan
-            # BAHASA: Bahasa Indonesia yang jelas dan mudah dipahami
-
+            # SUMBER: Data resmi dari FDA (U.S. Food and Drug Administration)
+            
             ## INFORMASI RESMI DARI FDA:
             {context}
-
+            
             ## PERTANYAAN PENGGUNA:
             {question}
-
-            ## INSTRUKSI:
-            1. JAWAB BERDASARKAN INFORMASI FDA DI ATAS - jangan membuat informasi baru
-            2. Fokus pada obat yang paling relevan dengan pertanyaan
-            3. Jika informasi tidak lengkap, jelaskan apa yang tersedia dari FDA
-            4. Sertakan peringatan penting dari data FDA
-            5. Gunakan bahasa yang mudah dipahami pasien
-            6. Jelaskan dalam Bahasa Indonesia
-            7. Berikan jawaban yang langsung menjawab pertanyaan
-            8. SELALU sebutkan bahwa informasi berasal dari FDA
-
+            
+            ## INSTRUKSI PENTING:
+            1. JAWAB HANYA BERDASARKAN INFORMASI FDA DI ATAS
+            2. SELALU sebutkan bahwa informasi berasal dari FDA
+            3. Tambahkan peringatan: "Konsultasi dengan dokter/apoteker sebelum penggunaan"
+            4. Jika informasi tidak lengkap, jelaskan batasannya
+            5. Jangan membuat informasi baru atau mengarang fakta
+            6. Gunakan bahasa Indonesia yang jelas dan mudah dipahami
+            
             ## JAWABAN:
             """
             
@@ -755,7 +565,7 @@ class SimpleRAGPharmaAssistant:
             }
 
 # ===========================================
-# FUNGSI UTAMA DENGAN PERBAIKAN
+# FUNGSI UTAMA YANG DIPERBAIKI
 # ===========================================
 def main():
     # Initialize assistant
@@ -867,6 +677,15 @@ def main():
             border-radius: 10px;
             margin: 10px 0;
         }
+        .rag-score-card {
+            background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 20px 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
     </style>
     """, unsafe_allow_html=True)
 
@@ -874,7 +693,7 @@ def main():
     st.sidebar.title("💊 Navigasi")
     page = st.sidebar.radio(
         "Pilih Halaman:",
-        ["🏠 Chatbot Obat", "📊 Evaluasi RAG System"]
+        ["🏠 Chatbot Obat", "📊 Evaluasi RAG (2 Metrik)"]
     )
     
     # Informasi obat yang tersedia di sidebar
@@ -892,7 +711,7 @@ def main():
     """)
     
     # ===========================================
-    # HALAMAN CHATBOT (EXISTING)
+    # HALAMAN CHATBOT (TIDAK BERUBAH)
     # ===========================================
     if page == "🏠 Chatbot Obat":
         # Header
@@ -939,7 +758,6 @@ def main():
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Tampilkan sources jika ada
                     if "sources" in message and message["sources"]:
                         with st.expander("📚 Informasi Obat dari FDA"):
                             for drug in message["sources"]:
@@ -981,18 +799,15 @@ def main():
                 )
 
         if submit_btn and user_input:
-            # Add user message
             st.session_state.messages.append({
                 "role": "user", 
                 "content": user_input,
                 "timestamp": datetime.now().strftime("%H:%M")
             })
             
-            # Get RAG response dari FDA API
             with st.spinner("🔍 Mengakses FDA API..."):
                 answer, sources = assistant.ask_question(user_input)
                 
-                # Add to conversation history
                 st.session_state.conversation_history.append({
                     'timestamp': datetime.now(),
                     'question': user_input,
@@ -1001,7 +816,6 @@ def main():
                     'source': 'FDA API'
                 })
                 
-                # Add bot message
                 st.session_state.messages.append({
                     "role": "bot", 
                     "content": answer,
@@ -1024,37 +838,31 @@ def main():
         """)
     
     # ===========================================
-    # HALAMAN EVALUASI RAG (DIPERBAIKI)
+    # HALAMAN EVALUASI RAG (2 METRIK SAJA)
     # ===========================================
-    elif page == "📊 Evaluasi RAG System":
-        st.title("📊 Evaluasi RAG System - 4 Metrik")
-        st.markdown("Evaluasi performa sistem menggunakan 4 metrik standar RAG")
+    elif page == "📊 Evaluasi RAG (2 Metrik)":
+        st.title("📊 Evaluasi Sistem RAG - 2 Metrik Inti")
+        st.markdown("**Fokus pada evaluasi komponen RETRIEVAL dan GENERATION dari RAG**")
         
         # Informasi evaluasi
-        with st.expander("ℹ️ Tentang 4 Metrik Evaluasi", expanded=True):
+        with st.expander("ℹ️ Tentang 2 Metrik Evaluasi RAG", expanded=True):
             st.markdown("""
             <div class="evaluation-info">
-            ### **📊 Metrik Evaluasi RAG**
+            ### **🎯 FOKUS EVALUASI RAG**
             
-            **1. Mean Reciprocal Rank (MRR)**
+            Penelitian ini fokus pada **2 metrik inti RAG** yang paling relevan dengan implementasi:
+            
+            **1. Mean Reciprocal Rank (MRR) - Evaluasi RETRIEVAL**
             - **Apa**: Mengukur akurasi sistem dalam menemukan obat yang benar dari query
             - **Target**: > 0.8 (80%)
-            - **Bobot**: 30% dalam overall score
+            - **Relevansi**: Mengukur komponen **R (Retrieval)** dari RAG
+            - **Baseline**: Samudra dkk. (2024): 0.930
             
-            **2. Faithfulness**
-            - **Apa**: Mengukur kesetiaan jawaban terhadap data sumber (FDA)
+            **2. Faithfulness - Evaluasi GENERATION**
+            - **Apa**: Mengukur kesetiaan jawaban terhadap sumber data FDA
             - **Target**: > 0.85 (85%)
-            - **Bobot**: 40% dalam overall score (paling penting untuk aplikasi medis)
-            
-            **3. Answer Relevancy**
-            - **Apa**: Mengukur relevansi jawaban terhadap pertanyaan spesifik
-            - **Target**: > 0.7 (70%)
-            - **Bobot**: 20% dalam overall score
-            
-            **4. Semantic Similarity**
-            - **Apa**: Mengukur kesamaan makna dengan jawaban ideal
-            - **Target**: > 0.75 (75%)
-            - **Bobot**: 10% dalam overall score
+            - **Relevansi**: Mengukur komponen **AG (Augmented Generation)** dari RAG
+            - **Baseline**: Samudra dkk. (2024): 0.620
             </div>
             """, unsafe_allow_html=True)
         
@@ -1062,38 +870,30 @@ def main():
         col1, col2, col3 = st.columns([2, 1, 1])
         
         with col1:
-            if st.button("🚀 Jalankan Evaluasi Komprehensif", use_container_width=True, type="primary"):
+            if st.button("🚀 Jalankan Evaluasi RAG", use_container_width=True, type="primary"):
                 with st.spinner("Menjalankan evaluasi pada 10 test cases..."):
-                    # Initialize evaluator
-                    st.session_state.evaluator = RAGEvaluator(assistant)
-                    
-                    # Jalankan evaluasi
-                    results = st.session_state.evaluator.run_complete_evaluation()
+                    st.session_state.evaluator = FocusedRAGEvaluator(assistant)
+                    results = st.session_state.evaluator.run_evaluation()
                     st.session_state.evaluation_results = results
-                    
-                    # Tampilkan notifikasi sukses
-                    st.success("✅ Evaluasi selesai! Scroll ke bawah untuk melihat hasil.")
+                    st.success("✅ Evaluasi RAG selesai!")
                     st.rerun()
         
         with col2:
-            if st.button("📥 Simpan Hasil ke JSON", use_container_width=True):
+            if st.button("📥 Simpan Hasil", use_container_width=True):
                 if st.session_state.evaluation_results:
-                    # Generate filename dengan timestamp
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    filename = f"rag_evaluation_{timestamp}.json"
+                    filename = f"rag_2metric_evaluation_{timestamp}.json"
                     
-                    # Simpan ke file
                     with open(filename, 'w', encoding='utf-8') as f:
                         json.dump(st.session_state.evaluation_results, f, indent=2, ensure_ascii=False)
                     
                     st.success(f"✅ Hasil disimpan ke `{filename}`")
                     
-                    # Tawarkan download
                     with open(filename, 'r', encoding='utf-8') as f:
                         data = f.read()
                     
                     st.download_button(
-                        label="⬇️ Download File JSON",
+                        label="⬇️ Download JSON",
                         data=data,
                         file_name=filename,
                         mime="application/json"
@@ -1107,24 +907,22 @@ def main():
                 st.session_state.evaluator = None
                 st.rerun()
         
-        # Garis pemisah
         st.markdown("---")
         
         # Tampilkan hasil evaluasi jika ada
         if st.session_state.evaluation_results:
             results = st.session_state.evaluation_results
             
-            st.markdown(f"### 📈 Hasil Evaluasi ({results['timestamp']})")
-            st.markdown(f"**Test Cases:** {results['total_test_cases']} pertanyaan • **Status:** ✅ Selesai")
+            st.markdown(f"### 📈 Hasil Evaluasi RAG ({results['timestamp']})")
+            st.markdown(f"**Test Cases:** {results['total_test_cases']} pertanyaan")
             
-            # Tampilkan metrik dalam 4 kolom
-            col1, col2, col3, col4 = st.columns(4)
+            # Tampilkan 2 metrik utama
+            col1, col2, col3 = st.columns([1, 1, 1])
             
-            # Helper function untuk menentukan warna score
             def get_score_color(score, target):
                 if score >= target:
                     return "good-score"
-                elif score >= target * 0.8:  # 80% dari target
+                elif score >= target * 0.8:
                     return "medium-score"
                 else:
                     return "poor-score"
@@ -1136,10 +934,10 @@ def main():
                 <div class="metric-card">
                     <div class="metric-label">MRR</div>
                     <div class="metric-value {color_class}">{mrr:.3f}</div>
-                    <div>Mean Reciprocal Rank</div>
+                    <div>Retrieval Accuracy</div>
                 </div>
                 """, unsafe_allow_html=True)
-                st.caption(f"**Target:** >0.800 | **Baseline:** 0.930 (Samudra dkk.)")
+                st.caption(f"**Target:** >0.800 | **Baseline:** 0.930")
             
             with col2:
                 faithfulness = results["Faithfulness"]
@@ -1148,192 +946,172 @@ def main():
                 <div class="metric-card">
                     <div class="metric-label">Faithfulness</div>
                     <div class="metric-value {color_class}">{faithfulness:.3f}</div>
-                    <div>Kesetiaan ke Sumber</div>
+                    <div>Generation Reliability</div>
                 </div>
                 """, unsafe_allow_html=True)
-                st.caption(f"**Target:** >0.850 | **Baseline:** 0.620 (Samudra dkk.)")
+                st.caption(f"**Target:** >0.850 | **Baseline:** 0.620")
             
             with col3:
-                relevancy = results["Answer_Relevancy"]
-                color_class = get_score_color(relevancy, 0.7)
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-label">Answer Relevancy</div>
-                    <div class="metric-value {color_class}">{relevancy:.3f}</div>
-                    <div>Relevansi Jawaban</div>
-                </div>
-                """, unsafe_allow_html=True)
-                st.caption(f"**Target:** >0.700 | **Baseline:** 0.570 (Samudra dkk.)")
-            
-            with col4:
-                similarity = results["Semantic_Similarity"]
-                color_class = get_score_color(similarity, 0.75)
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-label">Semantic Similarity</div>
-                    <div class="metric-value {color_class}">{similarity:.3f}</div>
-                    <div>Kesamaan Semantik</div>
-                </div>
-                """, unsafe_allow_html=True)
-                st.caption(f"**Target:** >0.750 | **Baseline:** 0.810 (Samudra dkk.)")
-            
-            # Overall Score
-            st.markdown("---")
-            overall = results["Overall_Score"]
-            
-            col_overall1, col_overall2 = st.columns([1, 3])
-            
-            with col_overall1:
-                # Determine overall color
-                if overall >= 0.8:
-                    overall_color = "#4CAF50"  # Green
-                    overall_status = "Baik"
-                elif overall >= 0.6:
-                    overall_color = "#FF9800"  # Orange
-                    overall_status = "Cukup"
+                rag_score = results["RAG_Score"]
+                if rag_score >= 0.8:
+                    rag_color = "#4CAF50"
+                    rag_status = "Excellent"
+                elif rag_score >= 0.7:
+                    rag_color = "#FF9800"
+                    rag_status = "Good"
                 else:
-                    overall_color = "#F44336"  # Red
-                    overall_status = "Perlu Perbaikan"
+                    rag_color = "#F44336"
+                    rag_status = "Needs Improvement"
                 
                 st.markdown(f"""
-                <div style="text-align: center; padding: 20px; border-radius: 10px; background: #f5f5f5; border: 2px solid {overall_color};">
-                    <div style="font-size: 0.9em; color: #666;">Overall Score</div>
-                    <div style="font-size: 2.5em; font-weight: bold; color: {overall_color};">
-                        {overall:.3f}
-                    </div>
-                    <div style="font-size: 0.9em; color: {overall_color}; font-weight: bold;">{overall_status}</div>
-                    <div style="font-size: 0.8em; color: #666;">Weighted Average</div>
+                <div class="rag-score-card">
+                    <div style="font-size: 1em; opacity: 0.9;">RAG Score</div>
+                    <div style="font-size: 2.5em; font-weight: bold;">{rag_score:.3f}</div>
+                    <div style="font-size: 0.9em; font-weight: bold;">{rag_status}</div>
+                    <div style="font-size: 0.8em; opacity: 0.8;">Average of 2 Metrics</div>
                 </div>
                 """, unsafe_allow_html=True)
             
-            with col_overall2:
-                # Progress bars untuk setiap metrik
-                st.markdown("**Detail Skor:**")
-                
-                metrics_data = [
-                    ("MRR", results["MRR"], 0.8),
-                    ("Faithfulness", results["Faithfulness"], 0.85),
-                    ("Answer Relevancy", results["Answer_Relevancy"], 0.7),
-                    ("Semantic Similarity", results["Semantic_Similarity"], 0.75)
-                ]
-                
-                for metric_name, score, target in metrics_data:
-                    # Tampilkan progress bar dengan target line
-                    col_a, col_b = st.columns([3, 1])
-                    
-                    with col_a:
-                        # Progress bar dengan warna berdasarkan performa
-                        if score >= target:
-                            bar_color = "green"
-                        elif score >= target * 0.8:
-                            bar_color = "orange"
-                        else:
-                            bar_color = "red"
-                        
-                        st.progress(
-                            float(score), 
-                            text=f"{metric_name}: {score:.3f} / {target}"
-                        )
-                    
-                    with col_b:
-                        # Persentase dari target
-                        percentage = (score / target * 100) if target > 0 else 0
-                        st.metric(label="% Target", value=f"{percentage:.1f}%")
+            # Analisis performa
+            st.markdown("---")
+            st.markdown("### 📊 Analisis Performa RAG")
             
-            # Detail hasil dalam expander
-            with st.expander("📋 Detail Hasil Evaluasi Lengkap"):
-                # Tampilkan JSON results
-                st.markdown("**Data Hasil (JSON):**")
+            col_a, col_b = st.columns(2)
+            
+            with col_a:
+                st.markdown("**📈 MRR Analysis:**")
+                if mrr == 1.0:
+                    st.success("✅ **Sempurna!** Sistem 100% akurat dalam mendeteksi obat")
+                elif mrr >= 0.9:
+                    st.success(f"✅ **Sangat Baik** ({mrr*100:.1f}% akurasi)")
+                elif mrr >= 0.8:
+                    st.info(f"🔸 **Baik** ({mrr*100:.1f}% akurasi)")
+                else:
+                    st.warning(f"⚠️ **Perlu Perbaikan** ({mrr*100:.1f}% akurasi)")
+                
+                # Perbandingan dengan baseline
+                baseline_mrr = 0.930
+                difference = mrr - baseline_mrr
+                if difference > 0:
+                    st.metric("vs Baseline", f"+{difference:.3f}", "Lebih Baik")
+                else:
+                    st.metric("vs Baseline", f"{difference:.3f}", "Kurang Baik")
+            
+            with col_b:
+                st.markdown("**📈 Faithfulness Analysis:**")
+                if faithfulness >= 0.9:
+                    st.success("✅ **Sangat Andal!** Minim hallucination")
+                elif faithfulness >= 0.85:
+                    st.success(f"✅ **Andal** ({faithfulness*100:.1f}% faithful)")
+                elif faithfulness >= 0.7:
+                    st.info(f"🔸 **Cukup Andal** ({faithfulness*100:.1f}% faithful)")
+                else:
+                    st.warning(f"⚠️ **Kurang Andal** ({faithfulness*100:.1f}% faithful)")
+                
+                # Perbandingan dengan baseline
+                baseline_faith = 0.620
+                difference = faithfulness - baseline_faith
+                if difference > 0:
+                    st.metric("vs Baseline", f"+{difference:.3f}", f"{difference/baseline_faith*100:.1f}% lebih baik")
+                else:
+                    st.metric("vs Baseline", f"{difference:.3f}", "Kurang Baik")
+            
+            # Detail hasil
+            with st.expander("📋 Detail Hasil Evaluasi"):
+                st.markdown("**Data Hasil:**")
                 st.json(results)
                 
-                # Tampilkan test cases
-                st.markdown("### 🧪 Test Cases yang Digunakan")
-                
-                # PERBAIKAN: Gunakan evaluator dari session state
                 if st.session_state.evaluator:
                     evaluator = st.session_state.evaluator
                     
-                    # Buat dataframe test cases
-                    test_df = pd.DataFrame([
-                        {
-                            "No": test["id"],
-                            "Pertanyaan": test["question"],
-                            "Obat yang Diharapkan": test["expected_drug"],
-                            "Tipe Pertanyaan": test["question_type"]
-                        }
-                        for test in evaluator.test_set
-                    ])
+                    # Test case details
+                    st.markdown("### 🧪 Detail Test Cases")
                     
-                    st.dataframe(test_df, use_container_width=True, hide_index=True)
+                    details_df = pd.DataFrame(results["test_case_details"])
+                    st.dataframe(details_df, use_container_width=True)
                     
-                    # Tampilkan contoh jawaban
+                    # Summary statistics
+                    st.markdown("### 📊 Statistik Summary")
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    detection_rate = details_df['detection_correct'].mean() * 100
+                    with col1:
+                        st.metric("Drug Detection Rate", f"{detection_rate:.1f}%")
+                    
+                    source_rate = details_df['has_sources'].mean() * 100
+                    with col2:
+                        st.metric("Sumber Ditemukan", f"{source_rate:.1f}%")
+                    
+                    fda_ref_rate = details_df['has_fda_reference'].mean() * 100
+                    with col3:
+                        st.metric("Referensi FDA", f"{fda_ref_rate:.1f}%")
+                    
+                    disclaimer_rate = details_df['has_medical_disclaimer'].mean() * 100
+                    with col4:
+                        st.metric("Disclaimer Medis", f"{disclaimer_rate:.1f}%")
+                    
+                    # Contoh jawaban
                     st.markdown("### 🤖 Contoh Jawaban Sistem")
                     
-                    # Pilih 3 test cases secara acak
-                    import random
-                    sample_tests = random.sample(evaluator.test_set, min(3, len(evaluator.test_set)))
+                    # Ambil 2 test cases secara acak
+                    sample_indices = random.sample(range(len(evaluator.test_set)), min(2, len(evaluator.test_set)))
                     
-                    for i, test in enumerate(sample_tests):
-                        with st.spinner(f"Mengambil jawaban untuk: '{test['question']}'..."):
+                    for idx in sample_indices:
+                        test = evaluator.test_set[idx]
+                        with st.spinner(f"Mengambil jawaban: '{test['question']}'..."):
                             answer, sources = assistant.ask_question(test["question"])
                             
                             with st.container():
-                                st.markdown(f"**Test Case {test['id']}:** `{test['question']}`")
-                                
-                                # Tampilkan jawaban dengan formatting
-                                st.markdown("**Jawaban Sistem:**")
+                                st.markdown(f"**Test {test['id']}:** `{test['question']}`")
+                                st.markdown("**Jawaban:**")
                                 st.info(answer)
                                 
-                                # Tampilkan informasi sumber
                                 if sources:
-                                    source_names = [s['nama'] for s in sources]
-                                    st.markdown(f"**Sumber FDA:** {', '.join(source_names)}")
+                                    st.success(f"✅ Sumber FDA ditemukan: {sources[0]['nama']}")
                                 else:
-                                    st.warning("Tidak ada sumber FDA ditemukan")
+                                    st.warning("⚠️ Tidak ada sumber FDA ditemukan")
                                 
                                 st.markdown("---")
-                else:
-                    st.warning("Evaluator tidak tersedia. Jalankan evaluasi terlebih dahulu.")
         
         else:
             # Tampilkan informasi sebelum evaluasi
             st.info("""
-            **📝 Informasi Evaluasi:**
+            **📝 Informasi Evaluasi RAG:**
             
-            Sistem akan dievaluasi menggunakan **10 test cases** yang meliputi:
-            - Pertanyaan tentang dosis obat
-            - Pertanyaan tentang efek samping
-            - Pertanyaan tentang indikasi penggunaan
-            - Pertanyaan tentang kontraindikasi
-            - Pertanyaan tentang interaksi obat
+            Sistem akan dievaluasi menggunakan **2 metrik inti RAG**:
             
-            **Klik tombol 'Jalankan Evaluasi Komprehensif' untuk memulai.**
+            1. **MRR (Retrieval)** - Mengukur akurasi dalam menemukan obat yang relevan
+            2. **Faithfulness (Generation)** - Mengukur kesetiaan jawaban ke sumber FDA
+            
+            **Test Cases:** 10 pertanyaan representatif tentang obat
+            
+            **Klik tombol 'Jalankan Evaluasi RAG' untuk memulai.**
             """)
             
             # Preview test cases
             st.markdown("### 🧪 Preview Test Cases")
             
-            # Buat evaluator sementara untuk preview
-            temp_evaluator = RAGEvaluator(assistant)
+            temp_evaluator = FocusedRAGEvaluator(assistant)
             
             preview_df = pd.DataFrame([
                 {
                     "No": test["id"],
                     "Pertanyaan": test["question"],
-                    "Obat": test["expected_drug"],
+                    "Obat Diharapkan": test["expected_drug"],
                     "Tipe": test["question_type"]
                 }
-                for test in temp_evaluator.test_set[:5]  # Hanya preview 5 pertama
+                for test in temp_evaluator.test_set[:3]
             ])
             
             st.dataframe(preview_df, use_container_width=True, hide_index=True)
             st.caption(f"Total: {len(temp_evaluator.test_set)} test cases")
 
-    # Footer (tampil di semua halaman)
+    # Footer
     st.markdown("---")
     st.markdown(
         "<div style='text-align: center; color: #666;'>"
-        "💊 **Sistem Tanya Jawab Obat** • Data dari FDA API • Terjemahan Gemini AI • Evaluasi RAG 4 Metrik"
+        "💊 **Sistem Tanya Jawab Obat dengan RAG** • Evaluasi 2 Metrik Inti (MRR & Faithfulness)"
         "</div>", 
         unsafe_allow_html=True
     )
