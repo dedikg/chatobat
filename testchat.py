@@ -11,7 +11,7 @@ import random
 
 # Konfigurasi halaman
 st.set_page_config(
-    page_title="Sistem Tanya Jawab Obat - FDA API dengan RAG",
+    page_title="Sistem Tanya Jawab Obat dengan RAG",
     page_icon="💊",
     layout="wide"
 )
@@ -715,7 +715,7 @@ def main():
     # ===========================================
     if page == "🏠 Chatbot Obat":
         # Header
-        st.title("💊 Sistem Tanya Jawab Obat - FDA API")
+        st.title("💊 Sistem Tanya Jawab Obat")
         st.markdown("Sistem informasi obat dengan data langsung dari **FDA API** dan terjemahan menggunakan **Gemini AI**")
 
         # FDA API Indicator
@@ -731,7 +731,7 @@ def main():
         if not st.session_state.messages:
             st.markdown("""
             <div class="welcome-message">
-                <h3>👋 Selamat Datang di Asisten Obat FDA</h3>
+                <h3>👋 Selamat Datang di Asisten Obat</h3>
                 <p>Dapatkan informasi obat <strong>langsung dari database resmi FDA</strong> dengan terjemahan otomatis ke Bahasa Indonesia</p>
                 <p><strong>💡 Contoh pertanyaan:</strong></p>
                 <p>"Dosis paracetamol?" | "Efek samping amoxicillin?" | "Interaksi obat omeprazole?"</p>
@@ -788,7 +788,7 @@ def main():
             
             with col_btn1:
                 submit_btn = st.form_submit_button(
-                    "🚀 Tanya FDA API", 
+                    "🚀 Tanya", 
                     use_container_width=True
                 )
             
@@ -840,8 +840,8 @@ def main():
     # ===========================================
     # HALAMAN EVALUASI RAG (2 METRIK SAJA)
     # ===========================================
-    elif page == "📊 Evaluasi RAG (2 Metrik)":
-        st.title("📊 Evaluasi Sistem RAG - 2 Metrik Inti")
+    elif page == "📊 Evaluasi RAG ":
+        st.title("📊 Evaluasi Sistem RAG")
         st.markdown("**Fokus pada evaluasi komponen RETRIEVAL dan GENERATION dari RAG**")
         
         # Informasi evaluasi
@@ -853,13 +853,13 @@ def main():
             Penelitian ini fokus pada **2 metrik inti RAG** yang paling relevan dengan implementasi:
             
             **1. Mean Reciprocal Rank (MRR) - Evaluasi RETRIEVAL**
-            - **Apa**: Mengukur akurasi sistem dalam menemukan obat yang benar dari query
+            - **Fungsi**: Mengukur akurasi sistem dalam menemukan obat yang benar dari query
             - **Target**: > 0.8 (80%)
             - **Relevansi**: Mengukur komponen **R (Retrieval)** dari RAG
             - **Baseline**: Samudra dkk. (2024): 0.930
             
             **2. Faithfulness - Evaluasi GENERATION**
-            - **Apa**: Mengukur kesetiaan jawaban terhadap sumber data FDA
+            - **Fungsi**: Mengukur kesetiaan jawaban terhadap sumber data FDA
             - **Target**: > 0.85 (85%)
             - **Relevansi**: Mengukur komponen **AG (Augmented Generation)** dari RAG
             - **Baseline**: Samudra dkk. (2024): 0.620
