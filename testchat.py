@@ -697,18 +697,18 @@ def main():
     )
     
     # Informasi obat yang tersedia di sidebar
-    st.sidebar.markdown("### 💊 Obat yang Tersedia")
+    # st.sidebar.markdown("### 💊 Obat yang Tersedia")
     
-    drug_detector = EnhancedDrugDetector()
-    available_drugs = drug_detector.get_all_available_drugs()
+    # drug_detector = EnhancedDrugDetector()
+    # available_drugs = drug_detector.get_all_available_drugs()
     
-    st.sidebar.info(f"""
-    Sistem dapat mencari informasi tentang:
-    {', '.join(available_drugs[:10])}
-    ...dan {len(available_drugs) - 10} obat lainnya
+    # st.sidebar.info(f"""
+    # Sistem dapat mencari informasi tentang:
+    # {', '.join(available_drugs[:10])}
+    # ...dan {len(available_drugs) - 10} obat lainnya
     
-    *Beberapa obat memiliki nama berbeda di FDA
-    """)
+    # *Beberapa obat memiliki nama berbeda di FDA
+    # """)
     
     # ===========================================
     # HALAMAN CHATBOT (TIDAK BERUBAH)
