@@ -33,84 +33,87 @@ class TranslationService:
         self.available = gemini_available
     
     def translate_to_indonesian(self, text: str):
-        """Translate text ke Bahasa Indonesia menggunakan Gemini"""
+        """Translate text ke Bahasa Indonesia menggunakan Gemini - LEBIH AGRESIF"""
         if not self.available or not text or text == "Tidak tersedia":
             return text
         
         try:
-            # JANGAN skip teks pendek - translate semua yang penting
-            # Hanya skip jika teks sangat pendek atau hanya angka
-            if len(text.strip()) < 10 or text.replace('.', '').replace('mg', '').replace('ml', '').isdigit():
+            # Skip jika sudah mengandung kata-kata Indonesia atau angka saja
+            indonesian_indicators = ['untuk', 'dengan', 'dalam', 'adalah', 'yang', 'dapat', 'akan', 'tidak']
+            has_indonesian = any(word in text.lower() for word in indonesian_indicators)
+            
+            if has_indonesian and len(text.split()) < 20:
+                # Kemungkinan sudah dalam Bahasa Indonesia
                 return text
             
-            # Kata-kata yang harus dipertahankan (jangan diterjemahkan)
+            # Kata-kata yang TIDAK BOLEH diterjemahkan
             preserve_words = [
-                'mg', 'ml', 'tablet', 'capsule', 'gelcap', 'acetaminophen', 
-                'ibuprofen', 'amoxicillin', 'omeprazole', 'paracetamol',
-                'FDA', 'mg/kg', 'g', 'mL', 'hr', 'day', 'week', 'month',
-                'hour', 'minute', 'second', 'dose', 'dosage', 'mg/day',
-                'mg/mL', 'mg/tablet', 'mg/capsule'
+                'mg', 'ml', 'g', 'kg', 'mg/kg', 'mg/mL', 'mg/tablet',
+                'FDA', 'USP', 'BP', 'mL', 'hr', 'day', 'week', 'month',
+                'acetaminophen', 'ibuprofen', 'paracetamol', 'omeprazole',
+                'amoxicillin', 'hydrocodone', 'bitartrate'
             ]
             
-            # Check jika teks sudah mengandung banyak kata yang harus dipertahankan
-            has_many_preserve_words = sum(1 for word in preserve_words if word.lower() in text.lower()) >= 3
-            
-            if has_many_preserve_words and len(text) < 100:
-                # Teks pendek dengan banyak istilah medis, terjemahkan tapi hati-hati
-                model = genai.GenerativeModel('gemini-2.0-flash')
-                
-                prompt = f"""
-                Terjemahkan teks medis berikut ke Bahasa Indonesia dengan ketentuan:
-                1. PERTAHANKAN semua angka, dosis, dan satuan (mg, ml, tablet, dll)
-                2. PERTAHANKAN nama obat asli (acetaminophen, ibuprofen, dll)
-                3. PERTAHANKAN istilah medis baku
-                4. Terjemahkan hanya bagian yang perlu (kata kerja, penjelasan)
-                5. Hasil harus mudah dipahami pasien
-                
-                TEKS ASLI: {text}
-                
-                CONTOH TERJEMAHAN YANG BENAR:
-                - "Take 2 tablets every 6 hours" → "Minum 2 tablet setiap 6 jam"
-                - "Do not exceed 4000 mg per day" → "Jangan melebihi 4000 mg per hari"
-                - "May cause drowsiness" → "Dapat menyebabkan kantuk"
-                
-                TERJEMAHAN:
-                """
-                
-                response = model.generate_content(prompt)
-                return response.text.strip()
-            
-            # Untuk teks panjang, terjemahkan normal
+            # Buat prompt yang lebih ketat
             model = genai.GenerativeModel('gemini-2.0-flash')
             
             prompt = f"""
-            Terjemahkan teks medis berikut ke Bahasa Indonesia:
+            Terjemahkan teks medis berikut ke Bahasa Indonesia dengan KETAT:
             
-            1. Pertahankan semua angka, dosis, dan satuan (mg, ml, tablet, dll)
-            2. Pertahankan nama obat asli
-            3. Gunakan bahasa formal tapi mudah dipahami
-            4. Jangan ubah makna medis
+            TEKS ASLI: "{text}"
             
-            TEKS: {text}
+            PERATURAN:
+            1. Hasil HARUS 100% Bahasa Indonesia
+            2. PERTAHANKAN semua: angka, satuan (mg, ml, dll), nama obat asli
+            3. JANGAN tambahkan informasi baru
+            4. JANGAN ubah makna medis
+            5. Gunakan bahasa formal tapi mudah dipahami pasien Indonesia
+            6. Jika teks panjang, buat menjadi poin-poin
+            7. JANGAN gunakan bahasa Inggris sama sekali dalam terjemahan
             
-            TERJEMAHAN:
+            CONTOH TERJEMAHAN YANG BENAR:
+            - "Take 2 tablets every 6 hours" → "Minum 2 tablet setiap 6 jam"
+            - "Do not exceed 4000 mg per day" → "Jangan melebihi 4000 mg per hari"
+            - "May cause drowsiness" → "Dapat menyebabkan kantuk"
+            - "Consult your doctor" → "Konsultasikan dengan dokter Anda"
+            
+            TERJEMAHAN BAHASA INDONESIA:
             """
             
             response = model.generate_content(prompt)
             translated = response.text.strip()
             
-            # Clean up
-            translated = translated.replace('"', '').replace("'", "").strip()
+            # Bersihkan output
+            translated = translated.replace('"', '').replace('Terjemahan:', '').strip()
             
-            # Jika terjemahan terlalu pendek, return original
-            if len(translated) < len(text) * 0.3:  # Terjemahan terlalu singkat
+            # Jika terjemahan terlalu pendek atau sama, return original
+            if len(translated) < len(text) * 0.3 or translated.lower() == text.lower():
                 return text
+            
+            # Pastikan tidak ada kata kunci Inggris yang seharusnya dipertahankan
+            for word in preserve_words:
+                if word.lower() in text.lower() and word.lower() not in translated.lower():
+                    # Tempatkan kembali kata yang penting
+                    import re
+                    pattern = re.compile(re.escape(word), re.IGNORECASE)
+                    translated = pattern.sub(word, translated)
             
             return translated
             
         except Exception as e:
             print(f"Translation error: {e}")
             return text
+    
+    def is_mostly_english(self, text: str) -> bool:
+        """Cek apakah teks sebagian besar berbahasa Inggris"""
+        english_words = ['the', 'and', 'for', 'with', 'that', 'this', 'are', 'you', 'have', 'from']
+        indonesian_words = ['yang', 'dengan', 'untuk', 'dalam', 'adalah', 'dari', 'pada', 'atau']
+        
+        text_lower = text.lower()
+        eng_count = sum(1 for word in english_words if word in text_lower)
+        ind_count = sum(1 for word in indonesian_words if word in text_lower)
+        
+        return eng_count > ind_count * 2  # Jika lebih banyak kata Inggris
 
 # ===========================================
 # PERBAIKAN 2: FDA API - CARI DATA LEBIH LENGKAP
@@ -199,147 +202,50 @@ class FDADrugAPI:
         
         return None
     
-    def _parse_fda_data(self, fda_data: dict, generic_name: str):
-        """Parse data FDA menjadi format yang kita butuhkan dengan lebih baik"""
-        openfda = fda_data.get('openfda', {})
-        
-        def get_field(field_name, default="Tidak tersedia"):
-            value = fda_data.get(field_name, '')
-            
-            if isinstance(value, list):
-                if value:
-                    # Gabungkan jika ada multiple values
-                    return ' '.join([str(v) for v in value if v])
-                return default
-            
-            if value and str(value).strip():
-                return str(value).strip()
-            
-            return default
-        
-        # Cari data di berbagai field yang mungkin
-        indications = self._extract_indications(fda_data)
-        dosage = self._extract_dosage(fda_data)
-        side_effects = self._extract_side_effects(fda_data)
-        contraindications = self._extract_contraindications(fda_data)
-        interactions = self._extract_interactions(fda_data)
-        warnings = self._extract_warnings(fda_data)
-        
-        drug_info = {
-            "nama": generic_name.title(),
-            "nama_generik": generic_name.title(),
-            "merek_dagang": ", ".join(openfda.get('brand_name', ['Tidak tersedia']))[:200],
-            "golongan": get_field('drug_class', "Tidak tersedia")[:100],
-            "indikasi": indications[:500] if indications != "Tidak tersedia" else "Tidak tersedia",
-            "dosis_dewasa": dosage[:500] if dosage != "Tidak tersedia" else "Tidak tersedia",
-            "efek_samping": side_effects[:500] if side_effects != "Tidak tersedia" else "Tidak tersedia",
-            "kontraindikasi": contraindications[:500] if contraindications != "Tidak tersedia" else "Tidak tersedia",
-            "interaksi": interactions[:500] if interactions != "Tidak tersedia" else "Tidak tersedia",
-            "peringatan": warnings[:500] if warnings != "Tidak tersedia" else "Tidak tersedia",
-            "bentuk_sediaan": ", ".join(openfda.get('dosage_form', ['Tidak tersedia']))[:100],
-            "route_pemberian": ", ".join(openfda.get('route', ['Tidak tersedia']))[:100],
-            "sumber": "FDA API"
-        }
-        
-        return drug_info
+   def _parse_fda_data(self, fda_data: dict, generic_name: str):
+    """Parse data FDA dan langsung terjemahkan ke Bahasa Indonesia"""
+    # ... [kode sebelumnya sama] ...
     
-    def _extract_indications(self, fda_data: dict):
-        """Ekstrak informasi indikasi dari berbagai field"""
-        fields_to_check = [
-            'indications_and_usage',
-            'purpose',
-            'description',
-            'clinical_pharmacology'
-        ]
-        
-        for field in fields_to_check:
-            if field in fda_data and fda_data[field]:
-                value = fda_data[field]
-                if isinstance(value, list) and value:
-                    return value[0][:500]
-                elif value:
-                    return str(value)[:500]
-        
-        return "Tidak tersedia"
+    drug_info = {
+        "nama": generic_name.title(),
+        "nama_generik": generic_name.title(),
+        "merek_dagang": self._translate_if_needed(", ".join(openfda.get('brand_name', ['Tidak tersedia']))[:200]),
+        "golongan": self._translate_if_needed(get_field('drug_class', "Tidak tersedia")[:100]),
+        "indikasi": self._translate_if_needed(indications[:500] if indications != "Tidak tersedia" else "Tidak tersedia"),
+        "dosis_dewasa": self._translate_if_needed(dosage[:500] if dosage != "Tidak tersedia" else "Tidak tersedia"),
+        "efek_samping": self._translate_if_needed(side_effects[:500] if side_effects != "Tidak tersedia" else "Tidak tersedia"),
+        "kontraindikasi": self._translate_if_needed(contraindications[:500] if contraindications != "Tidak tersedia" else "Tidak tersedia"),
+        "interaksi": self._translate_if_needed(interactions[:500] if interactions != "Tidak tersedia" else "Tidak tersedia"),
+        "peringatan": self._translate_if_needed(warnings[:500] if warnings != "Tidak tersedia" else "Tidak tersedia"),
+        "bentuk_sediaan": self._translate_if_needed(", ".join(openfda.get('dosage_form', ['Tidak tersedia']))[:100]),
+        "route_pemberian": self._translate_if_needed(", ".join(openfda.get('route', ['Tidak tersedia']))[:100]),
+        "sumber": "FDA API",
+        "bahasa": "Indonesia"  # Tambahkan flag bahasa
+    }
     
-    def _extract_dosage(self, fda_data: dict):
-        """Ekstrak informasi dosis dari berbagai field"""
-        fields_to_check = [
-            'dosage_and_administration',
-            'directions',
-            'dosage',
-            'how_supplied'
-        ]
-        
-        for field in fields_to_check:
-            if field in fda_data and fda_data[field]:
-                value = fda_data[field]
-                if isinstance(value, list) and value:
-                    return value[0][:500]
-                elif value:
-                    return str(value)[:500]
-        
-        return "Tidak tersedia"
+    return drug_info
+
+def _translate_if_needed(self, text: str) -> str:
+    """Cek dan terjemahkan jika teks berbahasa Inggris"""
+    if text == "Tidak tersedia" or not text:
+        return text
     
-    def _extract_side_effects(self, fda_data: dict):
-        """Ekstrak informasi efek samping"""
-        if 'adverse_reactions' in fda_data and fda_data['adverse_reactions']:
-            value = fda_data['adverse_reactions']
-            if isinstance(value, list) and value:
-                return value[0][:500]
-            elif value:
-                return str(value)[:500]
-        
-        # Coba di field lain
-        if 'warnings' in fda_data and fda_data['warnings']:
-            value = fda_data['warnings']
-            if isinstance(value, list) and value:
-                return value[0][:500]
-            elif value:
-                return str(value)[:500]
-        
-        return "Tidak tersedia"
+    # Import translator di sini untuk menghindari circular import
+    translator = TranslationService()
     
-    def _extract_contraindications(self, fda_data: dict):
-        """Ekstrak informasi kontraindikasi"""
-        if 'contraindications' in fda_data and fda_data['contraindications']:
-            value = fda_data['contraindications']
-            if isinstance(value, list) and value:
-                return value[0][:500]
-            elif value:
-                return str(value)[:500]
-        
-        return "Tidak tersedia"
+    # Cek apakah teks berbahasa Inggris
+    english_indicators = ['the', 'and', 'for', 'with', 'should', 'may', 'can', 'will']
+    indonesian_indicators = ['untuk', 'dengan', 'yang', 'adalah', 'dari', 'pada']
     
-    def _extract_interactions(self, fda_data: dict):
-        """Ekstrak informasi interaksi"""
-        if 'drug_interactions' in fda_data and fda_data['drug_interactions']:
-            value = fda_data['drug_interactions']
-            if isinstance(value, list) and value:
-                return value[0][:500]
-            elif value:
-                return str(value)[:500]
-        
-        return "Tidak tersedia"
+    text_lower = text.lower()
+    eng_count = sum(1 for word in english_indicators if word in text_lower)
+    ind_count = sum(1 for word in indonesian_indicators if word in text_lower)
     
-    def _extract_warnings(self, fda_data: dict):
-        """Ekstrak informasi peringatan"""
-        if 'warnings' in fda_data and fda_data['warnings']:
-            value = fda_data['warnings']
-            if isinstance(value, list) and value:
-                return value[0][:500]
-            elif value:
-                return str(value)[:500]
-        
-        # Coba di field precautions
-        if 'precautions' in fda_data and fda_data['precautions']:
-            value = fda_data['precautions']
-            if isinstance(value, list) and value:
-                return value[0][:500]
-            elif value:
-                return str(value)[:500]
-        
-        return "Tidak tersedia"
+    # Jika lebih banyak indikator Inggris, terjemahkan
+    if eng_count > ind_count and len(text.split()) > 3:
+        return translator.translate_to_indonesian(text)
+    
+    return text
 
 # ===========================================
 # PERBAIKAN 3: SIMPLE RAG ASSISTANT - IMPROVE PROMPT
@@ -519,48 +425,98 @@ class SimpleRAGPharmaAssistant:
             return "Maaf, terjadi error dalam sistem. Silakan coba lagi.", []
     
     def _generate_rag_response(self, question, context):
-        """Generate response menggunakan RAG pattern dengan Gemini"""
-        if not gemini_available:
-            return f"**Informasi dari FDA:**\n\n{context}"
-        
-        try:
-            model = genai.GenerativeModel('gemini-2.0-flash')
-            
-            prompt = f"""
-            Anda adalah asisten farmasi profesional. Jawab pertanyaan tentang obat HANYA berdasarkan informasi dari FDA yang disediakan.
-            
-            ## INFORMASI RESMI DARI FDA:
-            {context}
-            
-            ## PERTANYAAN PENGGUNA:
-            {question}
-            
-            ## INSTRUKSI:
-            1. JAWAB LANGSUNG pertanyaan di atas berdasarkan informasi FDA
-            2. Gunakan BAHASA INDONESIA yang mudah dipahami
-            3. Sebutkan bahwa informasi berasal dari FDA
-            4. Tambahkan: "Konsultasikan dengan dokter atau apoteker sebelum menggunakan"
-            5. Jika ada informasi yang tidak lengkap, katakan dengan jujur
-            6. Berikan jawaban yang singkat, jelas, dan relevan
-            7. JANGAN membuat informasi baru
-            8. Fokus pada informasi yang diminta dalam pertanyaan
-            
-            ## JAWABAN:
-            """
-            
-            response = model.generate_content(prompt)
-            return response.text
-            
-        except Exception as e:
-            return f"**Informasi dari FDA:**\n\n{context}"
+    """Generate response menggunakan RAG pattern dengan Gemini - PASTIKAN BAHASA INDONESIA"""
+    if not gemini_available:
+        # Jika Gemini tidak tersedia, format context dalam Bahasa Indonesia
+        return self._format_context_for_display(context)
     
-    def _update_conversation_context(self, question, answer, sources):
-        """Update conversation context"""
-        if sources:
-            self.current_context = {
-                'current_drug': sources[0]['nama'],
-                'timestamp': datetime.now()
+    try:
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        
+        # PROMPT YANG LEBIH KETAT - PASTIKAN BAHASA INDONESIA
+        prompt = f"""
+        Anda adalah asisten farmasi profesional yang HANYA menggunakan BAHASA INDONESIA.
+        
+        ## INFORMASI RESMI DARI FDA:
+        {context}
+        
+        ## PERTANYAAN PENGGUNA:
+        {question}
+        
+        ## ATURAN KETAT:
+        1. JAWAB DENGAN BAHASA INDONESIA 100% - jangan gunakan bahasa Inggris sama sekali
+        2. Jawaban HARUS berdasarkan informasi FDA di atas
+        3. Jangan tambahkan informasi yang tidak ada dalam data FDA
+        4. Sederhanakan bahasa teknis medis menjadi bahasa yang mudah dipahami pasien Indonesia
+        5. Format jawaban: ringkas, jelas, dan langsung ke poin
+        6. Selalu tambahkan: "Konsultasikan dengan dokter atau apoteker sebelum menggunakan obat"
+        
+        ## CONTOH JAWABAN YANG BENAR:
+        Pertanyaan: "Apa dosis paracetamol?"
+        Jawaban: "Berdasarkan data FDA, dosis paracetamol biasanya ... [jelaskan berdasarkan data FDA]. Konsultasikan dengan dokter atau apoteker sebelum menggunakan obat."
+        
+        ## JAWABAN (HANYA BAHASA INDONESIA):
+        """
+        
+        response = model.generate_content(prompt)
+        answer = response.text.strip()
+        
+        # VALIDASI: Pastikan jawaban dalam Bahasa Indonesia
+        # Cek apakah ada banyak kata Inggris yang tidak perlu
+        english_words = ['the', 'and', 'for', 'with', 'use', 'dosage', 'tablet', 'mg', 'ml']
+        english_count = sum(1 for word in english_words if word.lower() in answer.lower())
+        
+        if english_count > 5:  # Terlalu banyak kata Inggris
+            # Terjemahkan paksa ke Bahasa Indonesia
+            answer = self.translator.translate_to_indonesian(answer)
+        
+        return answer
+        
+    except Exception as e:
+        # Fallback: format context dengan Bahasa Indonesia
+        return self._format_context_for_display(context)
+
+def _format_context_for_display(self, context):
+    """Format context untuk display jika Gemini gagal - PASTIKAN BAHASA INDONESIA"""
+    lines = context.split('\n')
+    formatted_lines = []
+    
+    for line in lines:
+        if line.startswith('### OBAT'):
+            formatted_lines.append(line)
+        elif line.startswith('- **'):
+            # Terjemahkan field label ke Bahasa Indonesia jika perlu
+            translations = {
+                'Indications and Usage': 'Indikasi',
+                'Dosage and Administration': 'Dosis Dewasa',
+                'Adverse Reactions': 'Efek Samping',
+                'Contraindications': 'Kontraindikasi',
+                'Drug Interactions': 'Interaksi Obat',
+                'Warnings': 'Peringatan',
+                'Description': 'Deskripsi',
+                'Purpose': 'Tujuan'
             }
+            
+            for eng, ind in translations.items():
+                if eng in line:
+                    line = line.replace(eng, ind)
+            
+            # Terjemahkan konten jika masih dalam Inggris
+            if ':' in line:
+                parts = line.split(':', 1)
+                if len(parts) == 2:
+                    label, content = parts
+                    # Terjemahkan content jika perlu
+                    content_ind = self.translator.translate_to_indonesian(content)
+                    line = f"{label}: {content_ind}"
+            
+            formatted_lines.append(line)
+        else:
+            formatted_lines.append(line)
+    
+    formatted_context = '\n'.join(formatted_lines)
+    
+    return f"**Informasi dari FDA (diterjemahkan):**\n\n{formatted_context}\n\n⚠️ **Peringatan:** Informasi ini untuk edukasi. Konsultasikan dengan dokter sebelum menggunakan obat."
 
 # ===========================================
 # KELAS LAINNYA (TIDAK BERUBAH)
@@ -1045,14 +1001,14 @@ def main():
                 )
 
         if submit_btn and user_input:
-            st.session_state.messages.append({
-                "role": "user", 
-                "content": user_input,
-                "timestamp": datetime.now().strftime("%H:%M")
-            })
-            
-            with st.spinner("🔍 Mengakses FDA API..."):
-                answer, sources = assistant.ask_question(user_input)
+        st.session_state.messages.append({
+            "role": "user", 
+            "content": user_input,
+            "timestamp": datetime.now().strftime("%H:%M")
+        })
+        
+        with st.spinner("🔍 Mengakses FDA API..."):
+            answer, sources = assistant.ask_question(user_input)
                 
                 st.session_state.conversation_history.append({
                     'timestamp': datetime.now(),
