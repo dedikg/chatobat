@@ -125,6 +125,7 @@ class TranslationService:
         except Exception as e:
             print(f"Medical translation error: {e}")
             return text
+
 # ===========================================
 # PERBAIKAN 2: FDA API - CARI DATA LEBIH LENGKAP
 # ===========================================
@@ -277,9 +278,107 @@ class FDADrugAPI:
         
         # Terjemahkan string
         return translator.translate_to_indonesian(str(field_value))
+    
+    def _extract_indications(self, fda_data: dict):
+        """Ekstrak informasi indikasi dari berbagai field"""
+        fields_to_check = [
+            'indications_and_usage',
+            'purpose',
+            'description',
+            'clinical_pharmacology'
+        ]
+        
+        for field in fields_to_check:
+            if field in fda_data and fda_data[field]:
+                value = fda_data[field]
+                if isinstance(value, list) and value:
+                    return value[0][:500]
+                elif value:
+                    return str(value)[:500]
+        
+        return "Tidak tersedia"
+    
+    def _extract_dosage(self, fda_data: dict):
+        """Ekstrak informasi dosis dari berbagai field"""
+        fields_to_check = [
+            'dosage_and_administration',
+            'directions',
+            'dosage',
+            'how_supplied'
+        ]
+        
+        for field in fields_to_check:
+            if field in fda_data and fda_data[field]:
+                value = fda_data[field]
+                if isinstance(value, list) and value:
+                    return value[0][:500]
+                elif value:
+                    return str(value)[:500]
+        
+        return "Tidak tersedia"
+    
+    def _extract_side_effects(self, fda_data: dict):
+        """Ekstrak informasi efek samping"""
+        if 'adverse_reactions' in fda_data and fda_data['adverse_reactions']:
+            value = fda_data['adverse_reactions']
+            if isinstance(value, list) and value:
+                return value[0][:500]
+            elif value:
+                return str(value)[:500]
+        
+        # Coba di field lain
+        if 'warnings' in fda_data and fda_data['warnings']:
+            value = fda_data['warnings']
+            if isinstance(value, list) and value:
+                return value[0][:500]
+            elif value:
+                return str(value)[:500]
+        
+        return "Tidak tersedia"
+    
+    def _extract_contraindications(self, fda_data: dict):
+        """Ekstrak informasi kontraindikasi"""
+        if 'contraindications' in fda_data and fda_data['contraindications']:
+            value = fda_data['contraindications']
+            if isinstance(value, list) and value:
+                return value[0][:500]
+            elif value:
+                return str(value)[:500]
+        
+        return "Tidak tersedia"
+    
+    def _extract_interactions(self, fda_data: dict):
+        """Ekstrak informasi interaksi"""
+        if 'drug_interactions' in fda_data and fda_data['drug_interactions']:
+            value = fda_data['drug_interactions']
+            if isinstance(value, list) and value:
+                return value[0][:500]
+            elif value:
+                return str(value)[:500]
+        
+        return "Tidak tersedia"
+    
+    def _extract_warnings(self, fda_data: dict):
+        """Ekstrak informasi peringatan"""
+        if 'warnings' in fda_data and fda_data['warnings']:
+            value = fda_data['warnings']
+            if isinstance(value, list) and value:
+                return value[0][:500]
+            elif value:
+                return str(value)[:500]
+        
+        # Coba di field precautions
+        if 'precautions' in fda_data and fda_data['precautions']:
+            value = fda_data['precautions']
+            if isinstance(value, list) and value:
+                return value[0][:500]
+            elif value:
+                return str(value)[:500]
+        
+        return "Tidak tersedia"
 
 # ===========================================
-# PERBAIKAN 3: SIMPLE RAG ASSISTANT - IMPROVE PROMPT
+# PERBAIKAN 3: SIMPLE RAG ASSISTANT
 # ===========================================
 class SimpleRAGPharmaAssistant:
     def __init__(self):
@@ -377,7 +476,45 @@ class SimpleRAGPharmaAssistant:
         else:
             common_drugs = [drug['drug_name'] for drug in detected_drugs]
         
-        # ... [kode sebelumnya tetap] ...
+        # LANJUTKAN PENCARIAN
+        for drug_name in common_drugs[:top_k]:
+            score = 0
+            
+            # Cek apakah nama obat atau aliasnya ada dalam query
+            if drug_name in query_lower:
+                score += 10
+            
+            # Cek alias dari drug dictionary
+            aliases = self.drug_detector.drug_dictionary.get(drug_name, [])
+            for alias in aliases:
+                if alias in query_lower:
+                    score += 8
+                    break
+            
+            # Deteksi tipe pertanyaan
+            question_keywords = {
+                'dosis': ['dosis', 'berapa', 'takaran', 'aturan pakai', 'dosis untuk', 'berapa mg'],
+                'efek': ['efek samping', 'side effect', 'bahaya', 'efeknya', 'akibat'],
+                'kontraindikasi': ['kontra', 'tidak boleh', 'hindari', 'larangan', 'kontraindikasi'],
+                'interaksi': ['interaksi', 'bereaksi dengan', 'makanan', 'minuman', 'interaksinya'],
+                'indikasi': ['untuk apa', 'kegunaan', 'manfaat', 'indikasi', 'guna', 'fungsi']
+            }
+            
+            for key, keywords in question_keywords.items():
+                if any(kw in query_lower for kw in keywords):
+                    score += 3
+            
+            if score > 0:
+                drug_info = self._get_or_fetch_drug_info(drug_name)
+                if drug_info:
+                    results.append({
+                        'score': score,
+                        'drug_info': drug_info,
+                        'drug_id': drug_name
+                    })
+        
+        results.sort(key=lambda x: x['score'], reverse=True)
+        return results[:top_k]
     
     def _detect_with_indonesian_synonyms(self, query: str):
         """Deteksi obat dengan sinonim Bahasa Indonesia"""
@@ -586,8 +723,9 @@ class SimpleRAGPharmaAssistant:
                 'bahasa': 'Indonesia',
                 'timestamp': datetime.now()
             }
+
 # ===========================================
-# KELAS LAINNYA (TIDAK BERUBAH)
+# KELAS LAINNYA
 # ===========================================
 class EnhancedDrugDetector:
     def __init__(self):
@@ -645,7 +783,7 @@ class EnhancedDrugDetector:
         return self.fda_name_mapping.get(drug_name, drug_name)
 
 # ===========================================
-# KELAS EVALUASI (TIDAK BERUBAH)
+# KELAS EVALUASI
 # ===========================================
 class FocusedRAGEvaluator:
     def __init__(self, assistant):
@@ -852,7 +990,7 @@ class FocusedRAGEvaluator:
         return details
 
 # ===========================================
-# FUNGSI UTAMA (TIDAK BERUBAH)
+# FUNGSI UTAMA
 # ===========================================
 def main():
     # Initialize assistant dengan versi yang diperbaiki
@@ -871,7 +1009,7 @@ def main():
     if 'evaluator' not in st.session_state:
         st.session_state.evaluator = None
 
-    # Custom CSS (sama seperti sebelumnya)
+    # Custom CSS
     st.markdown("""
     <style>
         .chat-container {
@@ -1069,14 +1207,14 @@ def main():
                 )
 
         if submit_btn and user_input:
-        st.session_state.messages.append({
-            "role": "user", 
-            "content": user_input,
-            "timestamp": datetime.now().strftime("%H:%M")
-        })
-        
-        with st.spinner("🔍 Mengakses FDA API..."):
-            answer, sources = assistant.ask_question(user_input)
+            st.session_state.messages.append({
+                "role": "user", 
+                "content": user_input,
+                "timestamp": datetime.now().strftime("%H:%M")
+            })
+            
+            with st.spinner("🔍 Mengakses FDA API..."):
+                answer, sources = assistant.ask_question(user_input)
                 
                 st.session_state.conversation_history.append({
                     'timestamp': datetime.now(),
