@@ -26,7 +26,7 @@ except Exception as e:
     gemini_available = False
 
 # ===========================================
-# PERBAIKAN TRANSLATION SERVICE - HANYA TERJEMAHKAN JIKA DIPERLUKAN
+# TRANSLATION SERVICE - DENGAN MODEL BARU
 # ===========================================
 class TranslationService:
     def __init__(self):
@@ -49,7 +49,8 @@ class TranslationService:
             if len(text.strip()) < 15 or text.replace('.', '').replace('mg', '').replace('ml', '').replace(' ', '').isalnum():
                 return text
             
-            model = genai.GenerativeModel('gemini-2.0-flash')
+            # PERUBAHAN PENTING: Ganti model ke gemini-2.5-flash-lite
+            model = genai.GenerativeModel('gemini-2.5-flash-lite')
             
             prompt = f"""
             Anda adalah penerjemah medis profesional. Terjemahkan teks medis berikut ke Bahasa Indonesia:
@@ -90,7 +91,7 @@ class TranslationService:
             return text
 
 # ===========================================
-# FDA API - KELAS LENGKAP
+# FDA API
 # ===========================================
 class FDADrugAPI:
     def __init__(self):
@@ -308,7 +309,7 @@ class FDADrugAPI:
         return "Tidak tersedia"
 
 # ===========================================
-# SIMPLE RAG ASSISTANT - KELAS LENGKAP
+# SIMPLE RAG ASSISTANT - DENGAN MODEL BARU
 # ===========================================
 class SimpleRAGPharmaAssistant:
     def __init__(self):
@@ -469,12 +470,13 @@ class SimpleRAGPharmaAssistant:
             return "Maaf, terjadi error dalam sistem. Silakan coba lagi.", []
     
     def _generate_rag_response(self, question, context):
-        """Generate response menggunakan RAG pattern dengan Gemini"""
+        """Generate response menggunakan RAG pattern dengan Gemini 2.5 Flash Lite"""
         if not gemini_available:
             return f"**Informasi dari FDA:**\n\n{context}"
         
         try:
-            model = genai.GenerativeModel('gemini-2.0-flash')
+            # PERUBAHAN PENTING: Ganti model ke gemini-2.5-flash-lite
+            model = genai.GenerativeModel('gemini-2.5-flash-lite')
             
             prompt = f"""
             ANDA HARUS MENGGUNAKAN BAHASA INDONESIA SELURUHNYA.
@@ -598,7 +600,7 @@ class EnhancedDrugDetector:
         return self.fda_name_mapping.get(drug_name, drug_name)
 
 # ===========================================
-# KELAS EVALUASI (TIDAK BERUBAH - tetap sama)
+# KELAS EVALUASI (TIDAK BERUBAH)
 # ===========================================
 class FocusedRAGEvaluator:
     def __init__(self, assistant):
@@ -651,7 +653,7 @@ class FocusedRAGEvaluator:
             {
                 "id": 7,
                 "question": "Efek samping simvastatin?",
-                "expected_drug": "simvastatin",
+                "expected_drug": "simvastatin,
                 "question_type": "efek_samping",
                 "key_info_expected": ["efek", "samping", "simvastatin"]
             },
@@ -805,7 +807,7 @@ class FocusedRAGEvaluator:
         return details
 
 # ===========================================
-# FUNGSI UTAMA (sama seperti sebelumnya)
+# FUNGSI UTAMA
 # ===========================================
 def main():
     # Initialize assistant dengan versi yang diperbaiki
@@ -939,11 +941,12 @@ def main():
     # HALAMAN CHATBOT
     if page == "🏠 Chatbot Obat":
         st.title("💊 Sistem Tanya Jawab Obat")
-        st.markdown("Sistem informasi obat dengan data langsung dari **FDA API** dan terjemahan menggunakan **Gemini AI**")
+        st.markdown("Sistem informasi obat dengan data langsung dari **FDA API** dan terjemahan menggunakan **Gemini 2.5 Flash Lite**")
 
         st.markdown("""
         <div class="fda-indicator">
             🏥 <strong>DATA RESMI FDA</strong> - Informasi obat langsung dari U.S. Food and Drug Administration
+            <br>🤖 <strong>MODEL: Gemini 2.5 Flash Lite</strong> - Model khusus untuk output teks
         </div>
         """, unsafe_allow_html=True)
 
@@ -954,6 +957,7 @@ def main():
             <div class="welcome-message">
                 <h3>👋 Selamat Datang di Asisten Obat</h3>
                 <p>Dapatkan informasi obat <strong>langsung dari database resmi FDA</strong> dengan terjemahan otomatis ke Bahasa Indonesia</p>
+                <p><strong>🤖 Model AI:</strong> Gemini 2.5 Flash Lite (Text-out model)</p>
                 <p><strong>💡 Contoh pertanyaan:</strong></p>
                 <p>"Dosis paracetamol?" | "Efek samping amoxicillin?" | "Interaksi obat omeprazole?"</p>
                 <p>"Untuk apa metformin digunakan?" | "Peringatan penggunaan ibuprofen?"</p>
@@ -975,7 +979,7 @@ def main():
                     st.markdown(f"""
                     <div class="bot-message">
                         <div>{message["content"]}</div>
-                        <div class="message-time">{message["timestamp"]} • Sumber: FDA API</div>
+                        <div class="message-time">{message["timestamp"]} • Sumber: FDA API • Model: Gemini 2.5 Flash Lite</div>
                     </div>
                     """, unsafe_allow_html=True)
                     
@@ -1076,6 +1080,8 @@ def main():
             - **Fungsi**: Mengukur kesetiaan jawaban terhadap sumber data FDA
             - **Target**: > 0.85 (85%)
             - **Baseline**: Samudra dkk. (2024): 0.620
+            
+            **🤖 Model AI:** Gemini 2.5 Flash Lite
             </div>
             """, unsafe_allow_html=True)
         
@@ -1222,6 +1228,8 @@ def main():
             1. **MRR (Retrieval)** - Mengukur akurasi dalam menemukan obat yang relevan
             2. **Faithfulness (Generation)** - Mengukur kesetiaan jawaban ke sumber FDA
             
+            **🤖 Model AI:** Gemini 2.5 Flash Lite
+            
             **Test Cases:** 10 pertanyaan representatif tentang obat
             
             **Klik tombol 'Jalankan Evaluasi RAG' untuk memulai.**
@@ -1231,7 +1239,7 @@ def main():
     st.markdown("---")
     st.markdown(
         "<div style='text-align: center; color: #666;'>"
-        "💊 **Sistem Tanya Jawab Obat dengan RAG** • Evaluasi 2 Metrik Inti (MRR & Faithfulness)"
+        "💊 **Sistem Tanya Jawab Obat dengan RAG** • Model: Gemini 2.5 Flash Lite • Evaluasi 2 Metrik Inti (MRR & Faithfulness)"
         "</div>", 
         unsafe_allow_html=True
     )
