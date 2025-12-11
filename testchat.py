@@ -31,146 +31,62 @@ except Exception as e:
 class TranslationService:
     def __init__(self):
         self.available = gemini_available
-        self.cache = {}
-        
-        # Kata-kata yang TIDAK PERLU diterjemahkan
-        self.preserve_terms = [
-            # Satuan dan dosis
-            'mg', 'ml', 'g', 'kg', 'mg/kg', 'mg/mL', 'mg/tablet', 'mg/capsule',
-            'mg/day', 'mg/week', 'mg/month', 'IU', 'mcg', 'ng', 'μg',
-            
-            # Bentuk sediaan
-            'tablet', 'capsule', 'gelcap', 'caplet', 'lozenge', 'suppository',
-            'ointment', 'cream', 'gel', 'lotion', 'solution', 'suspension',
-            'syrup', 'elixir', 'injection', 'infusion', 'powder', 'spray',
-            
-            # Frekuensi waktu
-            'hour', 'hours', 'hr', 'minute', 'minutes', 'min', 
-            'day', 'days', 'week', 'weeks', 'month', 'months', 'year', 'years',
-            'daily', 'weekly', 'monthly', 'yearly',
-            
-            # Istilah medis umum
-            'dose', 'dosage', 'administration', 'route', 'oral', 'topical',
-            'intravenous', 'IV', 'IM', 'SC', 'subcutaneous', 'intramuscular',
-            'FDA', 'Food and Drug Administration', 'USP', 'BP', 'Ph.Eur.',
-            
-            # Tanda baca dan angka
-            '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
-            '.', ',', ';', ':', '-', '+', '/', '=', '%', '°C', '°F'
-        ]
-        
-        # Nama obat dalam bahasa Inggris (jangan diterjemahkan)
-        self.drug_names_english = [
-            'acetaminophen', 'ibuprofen', 'amoxicillin', 'omeprazole', 
-            'paracetamol', 'metformin', 'atorvastatin', 'simvastatin',
-            'loratadine', 'aspirin', 'ascorbic acid', 'lansoprazole',
-            'esomeprazole', 'cefixime', 'cetirizine', 'dextromethorphan',
-            'ambroxol', 'albuterol', 'salbutamol', 'diclofenac', 'naproxen',
-            'metronidazole', 'ciprofloxacin', 'azithromycin', 'prednisone',
-            'insulin', 'warfarin', 'clopidogrel', 'lisinopril', 'metoprolol'
-        ]
-    
-    def should_translate(self, text: str) -> bool:
-        """Tentukan apakah teks perlu diterjemahkan"""
-        if not text or text.strip() == "" or text == "Tidak tersedia":
-            return False
-        
-        text_lower = text.lower()
-        
-        # 1. Cek apakah teks sudah dalam Bahasa Indonesia
-        indonesian_indicators = ['yang', 'dengan', 'untuk', 'pada', 'dari', 'dan', 'atau', 
-                                'adalah', 'dapat', 'untuk', 'oleh', 'pada', 'serta']
-        
-        indo_word_count = sum(1 for word in indonesian_indicators if word in text_lower)
-        if indo_word_count >= 3:  # Kemungkinan besar sudah Bahasa Indonesia
-            return False
-        
-        # 2. Cek apakah teks hanya berisi angka dan satuan
-        temp_text = text_lower
-        for term in self.preserve_terms:
-            temp_text = temp_text.replace(term.lower(), '')
-        
-        # Hapus spasi dan tanda baca
-        temp_text = temp_text.replace(' ', '').replace('.', '').replace(',', '').replace(';', '').replace(':', '')
-        
-        if temp_text == '' or temp_text.isdigit():
-            return False
-        
-        # 3. Cek apakah teks pendek dan sudah jelas
-        if len(text.split()) <= 5:
-            english_word_count = sum(1 for word in text_lower.split() if word in self.drug_names_english)
-            if english_word_count >= 2:  # Banyak kata obat dalam bahasa Inggris
-                return False
-        
-        # 4. Default: terjemahkan
-        return True
     
     def translate_to_indonesian(self, text: str):
-        """Translate text ke Bahasa Indonesia HANYA jika diperlukan"""
+        """Translate text ke Bahasa Indonesia menggunakan Gemini"""
         if not self.available or not text or text == "Tidak tersedia":
             return text
         
-        # Cek cache
-        if text in self.cache:
-            return self.cache[text]
-        
-        # Tentukan apakah perlu diterjemahkan
-        if not self.should_translate(text):
-            self.cache[text] = text
-            return text
-        
         try:
-            # Gunakan prompt yang lebih spesifik untuk menjaga informasi asli
+            # Skip jika sudah mengandung banyak kata Bahasa Indonesia
+            indonesian_indicators = ['untuk', 'dengan', 'yang', 'dari', 'dalam', 'pada', 'adalah', 'sebagai']
+            indonesian_count = sum(1 for word in indonesian_indicators if word in text.lower())
+            
+            if indonesian_count > 3:
+                return text
+            
+            # Skip teks yang sangat teknis atau pendek
+            if len(text.strip()) < 15 or text.replace('.', '').replace('mg', '').replace('ml', '').replace(' ', '').isalnum():
+                return text
+            
             model = genai.GenerativeModel('gemini-2.0-flash')
             
             prompt = f"""
-            Anda adalah penerjemah medis profesional. Terjemahkan teks medis berikut ke Bahasa Indonesia DENGAN KETENTUAN:
+            Anda adalah penerjemah medis profesional. Terjemahkan teks medis berikut ke Bahasa Indonesia:
             
-            **PERATURAN PENTING:**
-            1. JANGAN terjemahkan atau ubah:
-               - Nama obat (acetaminophen, ibuprofen, dll)
-               - Angka dan satuan (mg, ml, tablet, dll)
-               - Istilah medis teknis yang tidak ada padanannya
-               - Kode dan singkatan (FDA, USP, dll)
+            TEKS ASLI: {text}
             
-            2. HANYA terjemahkan:
-               - Kalimat penjelasan
-               - Instruksi penggunaan
-               - Deskripsi umum
-               - Kata kerja dan kata sifat
+            ATURAN PENERJEMAHAN:
+            1. Pertahankan SEMUA angka, dosis, satuan (mg, ml, tablet, etc.)
+            2. Pertahankan nama obat asli (acetaminophen, ibuprofen, etc.)
+            3. Pertahankan istilah medis baku yang sudah dikenal di Indonesia
+            4. Gunakan bahasa Indonesia formal yang mudah dipahami pasien
+            5. Jangan ubah makna atau informasi medis
+            6. Terjemahkan seluruh teks kecuali yang disebutkan di poin 1-3
             
-            3. Format output:
-               - Pertahankan semua angka, simbol, dan tanda baca
-               - Jangan tambahkan atau kurangi informasi
-               - Gunakan bahasa formal medis Indonesia
+            CONTOH:
+            - "Take 2 tablets every 6 hours" → "Minum 2 tablet setiap 6 jam"
+            - "Do not exceed 4000 mg per day" → "Jangan melebihi 4000 mg per hari"
+            - "May cause drowsiness" → "Dapat menyebabkan kantuk"
+            - "For the management of pain" → "Untuk penanganan nyeri"
             
-            **TEKS ASLI:**
-            "{text}"
-            
-            **HASIL TERJEMAHAN:**
+            HASIL TERJEMAHAN:
             """
             
             response = model.generate_content(prompt)
             translated = response.text.strip()
             
-            # Clean up minimal
+            # Clean up
             translated = translated.replace('"', '').replace("'", "").strip()
             
-            # Validasi: pastikan informasi penting tidak hilang
-            original_numbers = re.findall(r'\d+\.?\d*', text)
-            translated_numbers = re.findall(r'\d+\.?\d*', translated)
-            
-            if len(original_numbers) != len(translated_numbers):
-                # Angka hilang dalam terjemahan, kembalikan original
+            # Pastikan terjemahan tidak kosong
+            if not translated or len(translated) < 5:
                 return text
             
-            # Simpan ke cache
-            self.cache[text] = translated
             return translated
             
         except Exception as e:
-            print(f"Translation error for text '{text[:50]}...': {e}")
-            # Jika error, kembalikan teks asli
+            print(f"Translation error: {e}")
             return text
 
 # ===========================================
@@ -180,88 +96,8 @@ class FDADrugAPI:
     def __init__(self):
         self.base_url = "https://api.fda.gov/drug/label.json"
     
-    def get_drug_info(self, generic_name: str):
-        """Ambil data obat langsung dari FDA API"""
-        params = {
-            'search': f'openfda.generic_name:"{generic_name}"',
-            'limit': 5
-        }
-        
-        try:
-            response = requests.get(self.base_url, params=params, timeout=20)
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('results'):
-                    # Cari data yang paling lengkap
-                    best_result = None
-                    max_field_count = 0
-                    
-                    for result in data['results']:
-                        field_count = self._count_complete_fields(result)
-                        if field_count > max_field_count:
-                            max_field_count = field_count
-                            best_result = result
-                    
-                    if best_result:
-                        return self._parse_fda_data(best_result, generic_name)
-                    
-                    # Jika tidak ada yang lengkap, ambil yang pertama
-                    return self._parse_fda_data(data['results'][0], generic_name)
-            
-            # Coba dengan pencarian alternatif
-            return self._try_alternative_search(generic_name)
-                
-        except Exception as e:
-            st.error(f"Error FDA API: {e}")
-            return None
-    
-    def _count_complete_fields(self, fda_data: dict):
-        """Hitung jumlah field yang memiliki data"""
-        important_fields = [
-            'indications_and_usage',
-            'dosage_and_administration', 
-            'adverse_reactions',
-            'contraindications',
-            'drug_interactions',
-            'warnings',
-            'description',
-            'purpose'
-        ]
-        
-        count = 0
-        for field in important_fields:
-            if field in fda_data and fda_data[field]:
-                value = fda_data[field]
-                if isinstance(value, list) and value:
-                    if value[0] and value[0].strip():
-                        count += 1
-                elif value and value.strip():
-                    count += 1
-        
-        return count
-    
-    def _try_alternative_search(self, generic_name: str):
-        """Coba pencarian alternatif jika data tidak ditemukan"""
-        # Coba dengan pencarian lebih umum
-        params = {
-            'search': f'_exists_:openfda.generic_name AND {generic_name}',
-            'limit': 3
-        }
-        
-        try:
-            response = requests.get(self.base_url, params=params, timeout=15)
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('results'):
-                    return self._parse_fda_data(data['results'][0], generic_name)
-        except:
-            pass
-        
-        return None
-    
     def _parse_fda_data(self, fda_data: dict, generic_name: str):
-        """Parse data FDA menjadi format yang kita butuhkan"""
+        """Parse data FDA menjadi format yang kita butuhkan dengan lebih baik"""
         openfda = fda_data.get('openfda', {})
         
         def get_field(field_name, default="Tidak tersedia"):
@@ -269,16 +105,26 @@ class FDADrugAPI:
             
             if isinstance(value, list):
                 if value:
-                    # Gabungkan jika ada multiple values
-                    return ' '.join([str(v) for v in value if v])
+                    # Ambil nilai pertama dan potong jika terlalu panjang
+                    text = ' '.join([str(v) for v in value if v])
+                    return text[:500]  # Batasi panjang
                 return default
             
             if value and str(value).strip():
-                return str(value).strip()
+                return str(value).strip()[:500]
             
             return default
         
-        # Ekstrak data dari berbagai field
+        # Gunakan nama Indonesia untuk obat tertentu
+        display_name = generic_name.title()
+        if 'acetaminophen' in generic_name.lower():
+            display_name = 'Paracetamol'
+        elif 'albuterol' in generic_name.lower():
+            display_name = 'Salbutamol'
+        elif 'ascorbic acid' in generic_name.lower():
+            display_name = 'Vitamin C'
+        
+        # Ekstrak informasi
         indications = self._extract_indications(fda_data)
         dosage = self._extract_dosage(fda_data)
         side_effects = self._extract_side_effects(fda_data)
@@ -287,8 +133,8 @@ class FDADrugAPI:
         warnings = self._extract_warnings(fda_data)
         
         drug_info = {
-            "nama": generic_name.title(),
-            "nama_generik": generic_name.title(),
+            "nama": display_name,
+            "nama_generik": display_name,
             "merek_dagang": ", ".join(openfda.get('brand_name', ['Tidak tersedia']))[:200],
             "golongan": get_field('drug_class', "Tidak tersedia")[:100],
             "indikasi": indications[:500] if indications != "Tidak tersedia" else "Tidak tersedia",
@@ -302,106 +148,11 @@ class FDADrugAPI:
             "sumber": "FDA API"
         }
         
+        # Tambahkan catatan untuk nama FDA yang berbeda
+        if generic_name.lower() in ['acetaminophen', 'albuterol', 'ascorbic acid']:
+            drug_info['catatan'] = f"Di FDA dikenal sebagai {generic_name}"
+        
         return drug_info
-    
-    def _extract_indications(self, fda_data: dict):
-        """Ekstrak informasi indikasi"""
-        fields_to_check = [
-            'indications_and_usage',
-            'purpose',
-            'description',
-            'clinical_pharmacology'
-        ]
-        
-        for field in fields_to_check:
-            if field in fda_data and fda_data[field]:
-                value = fda_data[field]
-                if isinstance(value, list) and value:
-                    return value[0][:500]
-                elif value:
-                    return str(value)[:500]
-        
-        return "Tidak tersedia"
-    
-    def _extract_dosage(self, fda_data: dict):
-        """Ekstrak informasi dosis"""
-        fields_to_check = [
-            'dosage_and_administration',
-            'directions',
-            'dosage',
-            'how_supplied'
-        ]
-        
-        for field in fields_to_check:
-            if field in fda_data and fda_data[field]:
-                value = fda_data[field]
-                if isinstance(value, list) and value:
-                    return value[0][:500]
-                elif value:
-                    return str(value)[:500]
-        
-        return "Tidak tersedia"
-    
-    def _extract_side_effects(self, fda_data: dict):
-        """Ekstrak informasi efek samping"""
-        if 'adverse_reactions' in fda_data and fda_data['adverse_reactions']:
-            value = fda_data['adverse_reactions']
-            if isinstance(value, list) and value:
-                return value[0][:500]
-            elif value:
-                return str(value)[:500]
-        
-        # Coba di field lain
-        if 'warnings' in fda_data and fda_data['warnings']:
-            value = fda_data['warnings']
-            if isinstance(value, list) and value:
-                return value[0][:500]
-            elif value:
-                return str(value)[:500]
-        
-        return "Tidak tersedia"
-    
-    def _extract_contraindications(self, fda_data: dict):
-        """Ekstrak informasi kontraindikasi"""
-        if 'contraindications' in fda_data and fda_data['contraindications']:
-            value = fda_data['contraindications']
-            if isinstance(value, list) and value:
-                return value[0][:500]
-            elif value:
-                return str(value)[:500]
-        
-        return "Tidak tersedia"
-    
-    def _extract_interactions(self, fda_data: dict):
-        """Ekstrak informasi interaksi"""
-        if 'drug_interactions' in fda_data and fda_data['drug_interactions']:
-            value = fda_data['drug_interactions']
-            if isinstance(value, list) and value:
-                return value[0][:500]
-            elif value:
-                return str(value)[:500]
-        
-        return "Tidak tersedia"
-    
-    def _extract_warnings(self, fda_data: dict):
-        """Ekstrak informasi peringatan"""
-        if 'warnings' in fda_data and fda_data['warnings']:
-            value = fda_data['warnings']
-            if isinstance(value, list) and value:
-                return value[0][:500]
-            elif value:
-                return str(value)[:500]
-        
-        # Coba di field precautions
-        if 'precautions' in fda_data and fda_data['precautions']:
-            value = fda_data['precautions']
-            if isinstance(value, list) and value:
-                return value[0][:500]
-            elif value:
-                return str(value)[:500]
-        
-        return "Tidak tersedia"
-
 # ===========================================
 # SIMPLE RAG ASSISTANT - DENGAN TRANSLASI SELEKTIF
 # ===========================================
@@ -412,124 +163,70 @@ class SimpleRAGPharmaAssistant:
         self.drug_detector = EnhancedDrugDetector()
         self.drugs_cache = {}
         self.current_context = {}
-        
-    def _get_or_fetch_drug_info(self, drug_name: str):
-        """Dapatkan data dari cache atau fetch dari FDA API"""
-        drug_key = drug_name.lower()
-        
-        if drug_key in self.drugs_cache:
-            return self.drugs_cache[drug_key]
-        
-        fda_name = self.drug_detector.get_fda_name(drug_name)
-        drug_info = self.fda_api.get_drug_info(fda_name)
-        
-        if drug_info:
-            if drug_name != fda_name:
-                drug_info['nama'] = drug_name.title()
-                drug_info['catatan'] = f"Di FDA dikenal sebagai {fda_name}"
-            
-            # TERJEMAHKAN HANYA JIKA PERLU
-            drug_info = self._translate_selective_fields(drug_info)
-            self.drugs_cache[drug_key] = drug_info
-        
-        return drug_info
     
-    def _translate_selective_fields(self, drug_info: dict):
-        """Translate hanya field yang benar-benar perlu, jangan hilangkan informasi"""
-        fields_that_might_need_translation = [
-            'indikasi', 
-            'dosis_dewasa',
-            'peringatan'
+    def _translate_all_fields(self, drug_info: dict):
+        """Translate SEMUA field yang penting ke Bahasa Indonesia dengan lebih agresif"""
+        fields_to_translate = [
+            'indikasi', 'dosis_dewasa', 'efek_samping', 
+            'kontraindikasi', 'interaksi', 'peringatan',
+            'golongan', 'bentuk_sediaan', 'route_pemberian',
+            'nama', 'merek_dagang'  # Tambah field nama
         ]
         
-        for field in fields_that_might_need_translation:
+        for field in fields_to_translate:
             if field in drug_info and drug_info[field] != "Tidak tersedia":
-                original_text = drug_info[field]
+                text = drug_info[field]
                 
-                # Hanya translate jika teks panjang dan mengandung kalimat penjelasan
-                if len(original_text) > 50 and not original_text.replace('.', '').replace(',', '').isdigit():
-                    translated = self.translator.translate_to_indonesian(original_text)
-                    if translated != original_text:  # Hanya update jika berbeda
+                # Untuk field yang sangat panjang, ambil bagian penting saja
+                if len(text) > 800:
+                    # Ambil 3 kalimat pertama untuk diterjemahkan
+                    sentences = text.split('. ')
+                    if len(sentences) > 3:
+                        important_part = '. '.join(sentences[:3]) + "..."
+                        translated = self.translator.translate_to_indonesian(important_part)
                         drug_info[field] = translated
+                    else:
+                        drug_info[field] = self.translator.translate_to_indonesian(text)
+                else:
+                    drug_info[field] = self.translator.translate_to_indonesian(text)
         
-        # Field berikut JANGAN diterjemahkan karena sudah jelas atau teknis
-        do_not_translate_fields = [
-            'nama', 'nama_generik', 'merek_dagang', 'golongan',
-            'efek_samping', 'kontraindikasi', 'interaksi',
-            'bentuk_sediaan', 'route_pemberian', 'sumber'
-        ]
-        
-        # Pastikan field tidak diterjemahkan
-        for field in do_not_translate_fields:
-            if field in drug_info:
-                # Pastikan tidak ada terjemahan yang dilakukan
-                pass
+        # Pastikan nama obat dalam format Indonesia
+        if 'nama' in drug_info:
+            drug_name = drug_info['nama'].lower()
+            if 'acetaminophen' in drug_name:
+                drug_info['nama'] = 'Paracetamol'
+            elif 'albuterol' in drug_name:
+                drug_info['nama'] = 'Salbutamol'
+            elif 'ascorbic acid' in drug_name:
+                drug_info['nama'] = 'Vitamin C'
         
         return drug_info
-    
-    def _rag_retrieve(self, query, top_k=3):
-        """Retrieve relevant information menggunakan FDA API"""
-        query_lower = query.lower()
-        results = []
-        
-        detected_drugs = self.drug_detector.detect_drug_from_query(query)
-        
-        if not detected_drugs:
-            common_drugs = self.drug_detector.get_all_available_drugs()
-        else:
-            common_drugs = [drug['drug_name'] for drug in detected_drugs]
-        
-        for drug_name in common_drugs[:top_k]:
-            score = 0
-            
-            if drug_name in query_lower:
-                score += 10
-            
-            aliases = self.drug_detector.drug_dictionary.get(drug_name, [])
-            for alias in aliases:
-                if alias in query_lower:
-                    score += 8
-                    break
-            
-            question_keywords = {
-                'dosis': ['dosis', 'berapa', 'takaran', 'aturan pakai', 'dosis untuk', 'berapa mg'],
-                'efek': ['efek samping', 'side effect', 'bahaya', 'efeknya', 'akibat'],
-                'kontraindikasi': ['kontra', 'tidak boleh', 'hindari', 'larangan', 'kontraindikasi'],
-                'interaksi': ['interaksi', 'bereaksi dengan', 'makanan', 'minuman', 'interaksinya'],
-                'indikasi': ['untuk apa', 'kegunaan', 'manfaat', 'indikasi', 'guna', 'fungsi']
-            }
-            
-            for key, keywords in question_keywords.items():
-                if any(kw in query_lower for kw in keywords):
-                    score += 3
-            
-            if score > 0:
-                drug_info = self._get_or_fetch_drug_info(drug_name)
-                if drug_info:
-                    results.append({
-                        'score': score,
-                        'drug_info': drug_info,
-                        'drug_id': drug_name
-                    })
-        
-        results.sort(key=lambda x: x['score'], reverse=True)
-        return results[:top_k]
     
     def _build_rag_context(self, retrieved_results):
-        """Build context untuk RAG generator dari data FDA"""
+        """Build context untuk RAG generator dari data FDA dalam Bahasa Indonesia"""
         if not retrieved_results:
             return "Tidak ada informasi yang relevan ditemukan dalam database FDA."
         
-        context = "## INFORMASI OBAT DARI FDA:\n\n"
+        context = "## INFORMASI OBAT DARI FDA (DALAM BAHASA INDONESIA):\n\n"
         
         for i, result in enumerate(retrieved_results, 1):
             drug_info = result['drug_info']
-            context += f"### OBAT {i}: {drug_info['nama']}\n"
+            
+            # Pastikan nama obat dalam Bahasa Indonesia
+            drug_name = drug_info['nama']
+            if 'acetaminophen' in drug_name.lower():
+                drug_display_name = "Paracetamol (Acetaminophen di FDA)"
+            elif 'albuterol' in drug_name.lower():
+                drug_display_name = "Salbutamol (Albuterol di FDA)"
+            else:
+                drug_display_name = drug_name
+            
+            context += f"### OBAT {i}: {drug_display_name}\n"
             
             if 'catatan' in drug_info:
                 context += f"- **Catatan:** {drug_info['catatan']}\n"
             
-            # Tampilkan SEMUA field dengan informasi asli (tidak dipotong untuk konteks RAG)
+            # Field yang akan ditampilkan dalam Bahasa Indonesia
             fields_to_display = [
                 ('Nama Generik', 'nama_generik'),
                 ('Merek Dagang', 'merek_dagang'),
@@ -540,50 +237,32 @@ class SimpleRAGPharmaAssistant:
                 ('Kontraindikasi', 'kontraindikasi'),
                 ('Interaksi', 'interaksi'),
                 ('Peringatan', 'peringatan'),
-                ('Bentuk Sediaan', 'bentuk_sediaan'),
-                ('Route Pemberian', 'route_pemberian')
+                ('Bentuk Sediaan', 'bentuk_sediaan')
             ]
             
             for label, field in fields_to_display:
                 if field in drug_info and drug_info[field] != "Tidak tersedia":
-                    # Tampilkan informasi LENGKAP untuk konteks RAG
-                    context += f"- **{label}:** {drug_info[field]}\n"
+                    text = drug_info[field]
+                    
+                    # Potong teks jika terlalu panjang
+                    if len(text) > 300:
+                        # Cari titik terdekat untuk pemotongan
+                        if '.' in text[:350]:
+                            cutoff = text[:350].rfind('.') + 1
+                            display_text = text[:cutoff] + " [selengkapnya...]"
+                        else:
+                            display_text = text[:300] + "..."
+                    else:
+                        display_text = text
+                    
+                    context += f"- **{label}:** {display_text}\n"
             
             context += "\n"
         
         return context
     
-    def ask_question(self, question):
-        """Main RAG interface dengan FDA API"""
-        try:
-            retrieved_results = self._rag_retrieve(question)
-            
-            if not retrieved_results:
-                available_drugs = ", ".join(self.drug_detector.get_all_available_drugs()[:10])
-                return f"❌ Tidak ditemukan informasi yang relevan dalam database FDA untuk pertanyaan Anda.\n\n💡 **Coba tanyakan tentang:** {available_drugs}", []
-            
-            rag_context = self._build_rag_context(retrieved_results)
-            answer = self._generate_rag_response(question, rag_context)
-            
-            sources = []
-            seen_drug_names = set()
-            
-            for result in retrieved_results:
-                drug_name = result['drug_info']['nama']
-                if drug_name not in seen_drug_names:
-                    sources.append(result['drug_info'])
-                    seen_drug_names.add(drug_name)
-            
-            self._update_conversation_context(question, answer, sources)
-            
-            return answer, sources
-            
-        except Exception as e:
-            st.error(f"Error dalam sistem: {e}")
-            return "Maaf, terjadi error dalam sistem. Silakan coba lagi.", []
-    
     def _generate_rag_response(self, question, context):
-        """Generate response menggunakan RAG pattern dengan Gemini"""
+        """Generate response menggunakan RAG pattern dengan Gemini dalam Bahasa Indonesia"""
         if not gemini_available:
             return f"**Informasi dari FDA:**\n\n{context}"
         
@@ -591,40 +270,60 @@ class SimpleRAGPharmaAssistant:
             model = genai.GenerativeModel('gemini-2.0-flash')
             
             prompt = f"""
-            Anda adalah asisten farmasi profesional. Jawab pertanyaan tentang obat HANYA berdasarkan informasi dari FDA yang disediakan.
+            ANDA HARUS MENGGUNAKAN BAHASA INDONESIA SELURUHNYA.
             
-            ## PERATURAN PENTING:
-            1. JAWAB LANGSUNG pertanyaan dengan informasi dari FDA
-            2. Gunakan BAHASA INDONESIA untuk penjelasan
-            3. JANGAN ubah atau terjemahkan:
-               - Nama obat (acetaminophen, ibuprofen, dll tetap dalam bahasa Inggris)
-               - Angka dan dosis (mg, ml, tablet tetap sama)
-               - Istilah medis teknis
-            4. Sebutkan bahwa informasi berasal dari FDA
-            5. Tambahkan disclaimer: "Konsultasikan dengan dokter atau apoteker sebelum menggunakan"
+            Anda adalah asisten farmasi profesional di Indonesia. Jawab pertanyaan tentang obat HANYA berdasarkan informasi dari FDA yang disediakan.
             
-            ## INFORMASI RESMI DARI FDA:
+            ## INFORMASI RESMI DARI FDA (sudah diterjemahkan ke Bahasa Indonesia):
             {context}
             
             ## PERTANYAAN PENGGUNA:
             {question}
             
-            ## JAWABAN:
+            ## ATURAN JAWABAN:
+            1. JAWAB LANGSUNG dalam BAHASA INDONESIA yang mudah dipahami pasien Indonesia
+            2. Gunakan informasi dari FDA di atas sebagai SATU-SATUNYA sumber
+            3. Sebutkan bahwa informasi berasal dari database resmi FDA (U.S. Food and Drug Administration)
+            4. Tambahkan peringatan: "HARAP KONSULTASIKAN DENGAN DOKTER ATAU APOTEKER SEBELUM MENGGUNAKAN OBAT INI"
+            5. Jika ada informasi yang tidak lengkap dalam data FDA, katakan: "Informasi ini tidak lengkap dalam database FDA"
+            6. Berikan jawaban yang SINGKAT, JELAS, dan RELEVAN dengan pertanyaan
+            7. JANGAN membuat informasi baru di luar yang ada di data FDA
+            8. Fokus pada informasi yang diminta dalam pertanyaan
+            9. Untuk nama obat: gunakan nama Indonesia jika ada (contoh: acetaminophen = paracetamol)
+            
+            ## FORMAT JAWABAN:
+            - Mulai dengan jawaban langsung
+            - Berikan informasi spesifik dari FDA
+            - Tambahkan disclaimer medis
+            - Akhiri dengan saran konsultasi
+            
+            ## JAWABAN (DALAM BAHASA INDONESIA):
             """
             
             response = model.generate_content(prompt)
-            return response.text
+            answer = response.text
+            
+            # Pastikan jawaban dalam Bahasa Indonesia
+            if self._is_mostly_english(answer):
+                # Jika masih banyak bahasa Inggris, terjemahkan
+                answer = self.translator.translate_to_indonesian(answer)
+            
+            return answer
             
         except Exception as e:
-            return f"**Informasi dari FDA:**\n\n{context}"
+            print(f"Generation error: {e}")
+            return f"**Informasi dari FDA (dalam Bahasa Indonesia):**\n\n{context}\n\n**Peringatan:** Konsultasikan dengan dokter atau apoteker sebelum menggunakan obat ini."
     
-    def _update_conversation_context(self, question, answer, sources):
-        """Update conversation context"""
-        if sources:
-            self.current_context = {
-                'current_drug': sources[0]['nama'],
-                'timestamp': datetime.now()
-            }
+    def _is_mostly_english(self, text):
+        """Cek apakah teks masih banyak bahasa Inggrisnya"""
+        indonesian_words = ['yang', 'untuk', 'dengan', 'dari', 'pada', 'adalah', 'sebagai', 'dapat', 'harus', 'jangan']
+        english_words = ['the', 'and', 'for', 'with', 'from', 'to', 'is', 'are', 'should', 'not']
+        
+        text_lower = text.lower()
+        id_count = sum(1 for word in indonesian_words if word in text_lower)
+        en_count = sum(1 for word in english_words if word in text_lower)
+        
+        return en_count > id_count * 1.5
 
 # ===========================================
 # KELAS LAINNYA (TIDAK BERUBAH)
