@@ -958,10 +958,7 @@ def main():
                 <h3>👋 Selamat Datang di Asisten Obat</h3>
                 <p>Dapatkan informasi obat <strong>langsung dari database resmi FDA</strong></p>
                
-                <p><strong>💡 Contoh pertanyaan:</strong></p>
-                <p>"Dosis paracetamol?" | "Efek samping amoxicillin?" | "Interaksi obat omeprazole?"</p>
-                <p>"Untuk apa metformin digunakan?" | "Peringatan penggunaan ibuprofen?"</p>
-                <p><em>Catatan: Beberapa obat memiliki nama berbeda di FDA (contoh: Paracetamol = Acetaminophen)</em></p>
+               
             </div>
             """, unsafe_allow_html=True)
         else:
