@@ -1,5 +1,3 @@
-[file name]: testchat.py
-[file content begin]
 import streamlit as st
 import pandas as pd
 import google.generativeai as genai
