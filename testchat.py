@@ -650,10 +650,10 @@ class FocusedRAGEvaluator:
                 "question_type": "dosis",
                 "key_info_expected": ["dosis", "atorvastatin"]
             },
-            {
+ {
                 "id": 7,
                 "question": "Efek samping simvastatin?",
-                "expected_drug": "simvastatin,
+                "expected_drug": "simvastatin",
                 "question_type": "efek_samping",
                 "key_info_expected": ["efek", "samping", "simvastatin"]
             },
