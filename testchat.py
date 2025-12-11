@@ -90,14 +90,88 @@ class TranslationService:
             return text
 
 # ===========================================
-# FDA API - TIDAK PERLU MODIFIKASI BESAR
+# FDA API - KELAS LENGKAP
 # ===========================================
 class FDADrugAPI:
     def __init__(self):
         self.base_url = "https://api.fda.gov/drug/label.json"
     
+    def get_drug_info(self, generic_name: str):
+        """Ambil data obat langsung dari FDA API"""
+        params = {
+            'search': f'openfda.generic_name:"{generic_name}"',
+            'limit': 5
+        }
+        
+        try:
+            response = requests.get(self.base_url, params=params, timeout=20)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('results'):
+                    best_result = None
+                    max_field_count = 0
+                    
+                    for result in data['results']:
+                        field_count = self._count_complete_fields(result)
+                        if field_count > max_field_count:
+                            max_field_count = field_count
+                            best_result = result
+                    
+                    if best_result:
+                        return self._parse_fda_data(best_result, generic_name)
+                    
+                    return self._parse_fda_data(data['results'][0], generic_name)
+            
+            return self._try_alternative_search(generic_name)
+                
+        except Exception as e:
+            st.error(f"Error FDA API: {e}")
+            return None
+    
+    def _count_complete_fields(self, fda_data: dict):
+        """Hitung jumlah field yang memiliki data"""
+        important_fields = [
+            'indications_and_usage',
+            'dosage_and_administration', 
+            'adverse_reactions',
+            'contraindications',
+            'drug_interactions',
+            'warnings'
+        ]
+        
+        count = 0
+        for field in important_fields:
+            if field in fda_data and fda_data[field]:
+                value = fda_data[field]
+                if isinstance(value, list) and value:
+                    if value[0] and value[0].strip():
+                        count += 1
+                elif value and value.strip():
+                    count += 1
+        
+        return count
+    
+    def _try_alternative_search(self, generic_name: str):
+        """Coba pencarian alternatif jika data tidak ditemukan"""
+        params = {
+            'search': f'_exists_:openfda.generic_name AND {generic_name}',
+            'limit': 3
+        }
+        
+        try:
+            response = requests.get(self.base_url, params=params, timeout=15)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('results'):
+                    return self._parse_fda_data(data['results'][0], generic_name)
+        except:
+            pass
+        
+        return None
+    
     def _parse_fda_data(self, fda_data: dict, generic_name: str):
-        """Parse data FDA menjadi format yang kita butuhkan dengan lebih baik"""
+        """Parse data FDA menjadi format yang kita butuhkan"""
         openfda = fda_data.get('openfda', {})
         
         def get_field(field_name, default="Tidak tersedia"):
@@ -105,9 +179,8 @@ class FDADrugAPI:
             
             if isinstance(value, list):
                 if value:
-                    # Ambil nilai pertama dan potong jika terlalu panjang
                     text = ' '.join([str(v) for v in value if v])
-                    return text[:500]  # Batasi panjang
+                    return text[:500]
                 return default
             
             if value and str(value).strip():
@@ -153,8 +226,89 @@ class FDADrugAPI:
             drug_info['catatan'] = f"Di FDA dikenal sebagai {generic_name}"
         
         return drug_info
+    
+    def _extract_indications(self, fda_data: dict):
+        """Ekstrak informasi indikasi"""
+        fields_to_check = [
+            'indications_and_usage',
+            'purpose',
+            'description'
+        ]
+        
+        for field in fields_to_check:
+            if field in fda_data and fda_data[field]:
+                value = fda_data[field]
+                if isinstance(value, list) and value:
+                    return value[0][:500]
+                elif value:
+                    return str(value)[:500]
+        
+        return "Tidak tersedia"
+    
+    def _extract_dosage(self, fda_data: dict):
+        """Ekstrak informasi dosis"""
+        fields_to_check = [
+            'dosage_and_administration',
+            'directions',
+            'dosage'
+        ]
+        
+        for field in fields_to_check:
+            if field in fda_data and fda_data[field]:
+                value = fda_data[field]
+                if isinstance(value, list) and value:
+                    return value[0][:500]
+                elif value:
+                    return str(value)[:500]
+        
+        return "Tidak tersedia"
+    
+    def _extract_side_effects(self, fda_data: dict):
+        """Ekstrak informasi efek samping"""
+        if 'adverse_reactions' in fda_data and fda_data['adverse_reactions']:
+            value = fda_data['adverse_reactions']
+            if isinstance(value, list) and value:
+                return value[0][:500]
+            elif value:
+                return str(value)[:500]
+        
+        return "Tidak tersedia"
+    
+    def _extract_contraindications(self, fda_data: dict):
+        """Ekstrak informasi kontraindikasi"""
+        if 'contraindications' in fda_data and fda_data['contraindications']:
+            value = fda_data['contraindications']
+            if isinstance(value, list) and value:
+                return value[0][:500]
+            elif value:
+                return str(value)[:500]
+        
+        return "Tidak tersedia"
+    
+    def _extract_interactions(self, fda_data: dict):
+        """Ekstrak informasi interaksi"""
+        if 'drug_interactions' in fda_data and fda_data['drug_interactions']:
+            value = fda_data['drug_interactions']
+            if isinstance(value, list) and value:
+                return value[0][:500]
+            elif value:
+                return str(value)[:500]
+        
+        return "Tidak tersedia"
+    
+    def _extract_warnings(self, fda_data: dict):
+        """Ekstrak informasi peringatan"""
+        if 'warnings' in fda_data and fda_data['warnings']:
+            value = fda_data['warnings']
+            if isinstance(value, list) and value:
+                return value[0][:500]
+            elif value:
+                return str(value)[:500]
+        
+        return "Tidak tersedia"
+
 # ===========================================
-# SIMPLE RAG ASSISTANT - DENGAN TRANSLASI SELEKTIF
+# SIMPLE RAG ASSISTANT - KELAS LENGKAP
 # ===========================================
 class SimpleRAGPharmaAssistant:
     def __init__(self):
@@ -164,69 +318,104 @@ class SimpleRAGPharmaAssistant:
         self.drugs_cache = {}
         self.current_context = {}
     
+    def _get_or_fetch_drug_info(self, drug_name: str):
+        """Dapatkan data dari cache atau fetch dari FDA API"""
+        drug_key = drug_name.lower()
+        
+        if drug_key in self.drugs_cache:
+            return self.drugs_cache[drug_key]
+        
+        fda_name = self.drug_detector.get_fda_name(drug_name)
+        drug_info = self.fda_api.get_drug_info(fda_name)
+        
+        if drug_info:
+            if drug_name != fda_name:
+                drug_info['nama'] = drug_name.title()
+                drug_info['catatan'] = f"Di FDA dikenal sebagai {fda_name}"
+            
+            drug_info = self._translate_all_fields(drug_info)
+            self.drugs_cache[drug_key] = drug_info
+        
+        return drug_info
+    
     def _translate_all_fields(self, drug_info: dict):
-        """Translate SEMUA field yang penting ke Bahasa Indonesia dengan lebih agresif"""
+        """Translate SEMUA field yang penting ke Bahasa Indonesia"""
         fields_to_translate = [
             'indikasi', 'dosis_dewasa', 'efek_samping', 
             'kontraindikasi', 'interaksi', 'peringatan',
             'golongan', 'bentuk_sediaan', 'route_pemberian',
-            'nama', 'merek_dagang'  # Tambah field nama
+            'nama', 'merek_dagang'
         ]
         
         for field in fields_to_translate:
             if field in drug_info and drug_info[field] != "Tidak tersedia":
                 text = drug_info[field]
-                
-                # Untuk field yang sangat panjang, ambil bagian penting saja
-                if len(text) > 800:
-                    # Ambil 3 kalimat pertama untuk diterjemahkan
-                    sentences = text.split('. ')
-                    if len(sentences) > 3:
-                        important_part = '. '.join(sentences[:3]) + "..."
-                        translated = self.translator.translate_to_indonesian(important_part)
-                        drug_info[field] = translated
-                    else:
-                        drug_info[field] = self.translator.translate_to_indonesian(text)
-                else:
-                    drug_info[field] = self.translator.translate_to_indonesian(text)
-        
-        # Pastikan nama obat dalam format Indonesia
-        if 'nama' in drug_info:
-            drug_name = drug_info['nama'].lower()
-            if 'acetaminophen' in drug_name:
-                drug_info['nama'] = 'Paracetamol'
-            elif 'albuterol' in drug_name:
-                drug_info['nama'] = 'Salbutamol'
-            elif 'ascorbic acid' in drug_name:
-                drug_info['nama'] = 'Vitamin C'
+                drug_info[field] = self.translator.translate_to_indonesian(text)
         
         return drug_info
     
+    def _rag_retrieve(self, query, top_k=3):
+        """Retrieve relevant information dari FDA API"""
+        query_lower = query.lower()
+        results = []
+        
+        detected_drugs = self.drug_detector.detect_drug_from_query(query)
+        
+        if not detected_drugs:
+            common_drugs = self.drug_detector.get_all_available_drugs()
+        else:
+            common_drugs = [drug['drug_name'] for drug in detected_drugs]
+        
+        for drug_name in common_drugs[:top_k]:
+            score = 0
+            
+            if drug_name in query_lower:
+                score += 10
+            
+            aliases = self.drug_detector.drug_dictionary.get(drug_name, [])
+            for alias in aliases:
+                if alias in query_lower:
+                    score += 8
+                    break
+            
+            question_keywords = {
+                'dosis': ['dosis', 'berapa', 'takaran', 'aturan pakai'],
+                'efek': ['efek samping', 'side effect', 'bahaya', 'efeknya'],
+                'kontraindikasi': ['kontra', 'tidak boleh', 'hindari', 'larangan'],
+                'interaksi': ['interaksi', 'bereaksi dengan', 'makanan', 'minuman'],
+                'indikasi': ['untuk apa', 'kegunaan', 'manfaat', 'indikasi']
+            }
+            
+            for key, keywords in question_keywords.items():
+                if any(kw in query_lower for kw in keywords):
+                    score += 3
+            
+            if score > 0:
+                drug_info = self._get_or_fetch_drug_info(drug_name)
+                if drug_info:
+                    results.append({
+                        'score': score,
+                        'drug_info': drug_info,
+                        'drug_id': drug_name
+                    })
+        
+        results.sort(key=lambda x: x['score'], reverse=True)
+        return results[:top_k]
+    
     def _build_rag_context(self, retrieved_results):
-        """Build context untuk RAG generator dari data FDA dalam Bahasa Indonesia"""
+        """Build context untuk RAG generator dari data FDA"""
         if not retrieved_results:
             return "Tidak ada informasi yang relevan ditemukan dalam database FDA."
         
-        context = "## INFORMASI OBAT DARI FDA (DALAM BAHASA INDONESIA):\n\n"
+        context = "## INFORMASI OBAT DARI FDA:\n\n"
         
         for i, result in enumerate(retrieved_results, 1):
             drug_info = result['drug_info']
-            
-            # Pastikan nama obat dalam Bahasa Indonesia
-            drug_name = drug_info['nama']
-            if 'acetaminophen' in drug_name.lower():
-                drug_display_name = "Paracetamol (Acetaminophen di FDA)"
-            elif 'albuterol' in drug_name.lower():
-                drug_display_name = "Salbutamol (Albuterol di FDA)"
-            else:
-                drug_display_name = drug_name
-            
-            context += f"### OBAT {i}: {drug_display_name}\n"
+            context += f"### OBAT {i}: {drug_info['nama']}\n"
             
             if 'catatan' in drug_info:
                 context += f"- **Catatan:** {drug_info['catatan']}\n"
             
-            # Field yang akan ditampilkan dalam Bahasa Indonesia
             fields_to_display = [
                 ('Nama Generik', 'nama_generik'),
                 ('Merek Dagang', 'merek_dagang'),
@@ -236,33 +425,51 @@ class SimpleRAGPharmaAssistant:
                 ('Efek Samping', 'efek_samping'),
                 ('Kontraindikasi', 'kontraindikasi'),
                 ('Interaksi', 'interaksi'),
-                ('Peringatan', 'peringatan'),
-                ('Bentuk Sediaan', 'bentuk_sediaan')
+                ('Peringatan', 'peringatan')
             ]
             
             for label, field in fields_to_display:
                 if field in drug_info and drug_info[field] != "Tidak tersedia":
                     text = drug_info[field]
-                    
-                    # Potong teks jika terlalu panjang
                     if len(text) > 300:
-                        # Cari titik terdekat untuk pemotongan
-                        if '.' in text[:350]:
-                            cutoff = text[:350].rfind('.') + 1
-                            display_text = text[:cutoff] + " [selengkapnya...]"
-                        else:
-                            display_text = text[:300] + "..."
-                    else:
-                        display_text = text
-                    
-                    context += f"- **{label}:** {display_text}\n"
+                        text = text[:300] + "..."
+                    context += f"- **{label}:** {text}\n"
             
             context += "\n"
         
         return context
     
+    def ask_question(self, question):
+        """Main RAG interface dengan FDA API"""
+        try:
+            retrieved_results = self._rag_retrieve(question)
+            
+            if not retrieved_results:
+                available_drugs = ", ".join(self.drug_detector.get_all_available_drugs()[:10])
+                return f"❌ Tidak ditemukan informasi yang relevan dalam database FDA untuk pertanyaan Anda.\n\n💡 **Coba tanyakan tentang:** {available_drugs}", []
+            
+            rag_context = self._build_rag_context(retrieved_results)
+            answer = self._generate_rag_response(question, rag_context)
+            
+            sources = []
+            seen_drug_names = set()
+            
+            for result in retrieved_results:
+                drug_name = result['drug_info']['nama']
+                if drug_name not in seen_drug_names:
+                    sources.append(result['drug_info'])
+                    seen_drug_names.add(drug_name)
+            
+            self._update_conversation_context(question, answer, sources)
+            
+            return answer, sources
+            
+        except Exception as e:
+            st.error(f"Error dalam proses RAG: {e}")
+            return "Maaf, terjadi error dalam sistem. Silakan coba lagi.", []
+    
     def _generate_rag_response(self, question, context):
-        """Generate response menggunakan RAG pattern dengan Gemini dalam Bahasa Indonesia"""
+        """Generate response menggunakan RAG pattern dengan Gemini"""
         if not gemini_available:
             return f"**Informasi dari FDA:**\n\n{context}"
         
@@ -274,7 +481,7 @@ class SimpleRAGPharmaAssistant:
             
             Anda adalah asisten farmasi profesional di Indonesia. Jawab pertanyaan tentang obat HANYA berdasarkan informasi dari FDA yang disediakan.
             
-            ## INFORMASI RESMI DARI FDA (sudah diterjemahkan ke Bahasa Indonesia):
+            ## INFORMASI RESMI DARI FDA:
             {context}
             
             ## PERTANYAAN PENGGUNA:
@@ -305,14 +512,13 @@ class SimpleRAGPharmaAssistant:
             
             # Pastikan jawaban dalam Bahasa Indonesia
             if self._is_mostly_english(answer):
-                # Jika masih banyak bahasa Inggris, terjemahkan
                 answer = self.translator.translate_to_indonesian(answer)
             
             return answer
             
         except Exception as e:
             print(f"Generation error: {e}")
-            return f"**Informasi dari FDA (dalam Bahasa Indonesia):**\n\n{context}\n\n**Peringatan:** Konsultasikan dengan dokter atau apoteker sebelum menggunakan obat ini."
+            return f"**Informasi dari FDA:**\n\n{context}\n\n**Peringatan:** Konsultasikan dengan dokter atau apoteker sebelum menggunakan obat ini."
     
     def _is_mostly_english(self, text):
         """Cek apakah teks masih banyak bahasa Inggrisnya"""
@@ -323,10 +529,18 @@ class SimpleRAGPharmaAssistant:
         id_count = sum(1 for word in indonesian_words if word in text_lower)
         en_count = sum(1 for word in english_words if word in text_lower)
         
-        return en_count > id_count * 1.5
+        return en_count > id_count
+    
+    def _update_conversation_context(self, question, answer, sources):
+        """Update conversation context"""
+        if sources:
+            self.current_context = {
+                'current_drug': sources[0]['nama'],
+                'timestamp': datetime.now()
+            }
 
 # ===========================================
-# KELAS LAINNYA (TIDAK BERUBAH)
+# KELAS DRUG DETECTOR (TIDAK BERUBAH)
 # ===========================================
 class EnhancedDrugDetector:
     def __init__(self):
@@ -384,7 +598,7 @@ class EnhancedDrugDetector:
         return self.fda_name_mapping.get(drug_name, drug_name)
 
 # ===========================================
-# KELAS EVALUASI (TIDAK BERUBAH)
+# KELAS EVALUASI (TIDAK BERUBAH - tetap sama)
 # ===========================================
 class FocusedRAGEvaluator:
     def __init__(self, assistant):
@@ -539,7 +753,7 @@ class FocusedRAGEvaluator:
                 "total_test_cases": len(self.test_set),
                 "MRR": float(mrr_score),
                 "Faithfulness": float(faithfulness_score),
-                "RAG_Score": float((mrr_score + faithfulness_score) / 2)  # Simple average
+                "RAG_Score": float((mrr_score + faithfulness_score) / 2)
             }
             
             # Simpan detail test case untuk analisis
@@ -591,7 +805,7 @@ class FocusedRAGEvaluator:
         return details
 
 # ===========================================
-# FUNGSI UTAMA (TIDAK BERUBAH)
+# FUNGSI UTAMA (sama seperti sebelumnya)
 # ===========================================
 def main():
     # Initialize assistant dengan versi yang diperbaiki
@@ -610,7 +824,7 @@ def main():
     if 'evaluator' not in st.session_state:
         st.session_state.evaluator = None
 
-    # Custom CSS (sama seperti sebelumnya)
+    # Custom CSS
     st.markdown("""
     <style>
         .chat-container {
@@ -712,15 +926,6 @@ def main():
             margin: 20px 0;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        .translation-note {
-            background-color: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 5px;
-            padding: 5px 10px;
-            margin: 5px 0;
-            font-size: 0.8em;
-            color: #856404;
-        }
     </style>
     """, unsafe_allow_html=True)
 
@@ -731,12 +936,10 @@ def main():
         ["🏠 Chatbot Obat", "📊 Evaluasi RAG"]
     )
     
-    # ===========================================
     # HALAMAN CHATBOT
-    # ===========================================
     if page == "🏠 Chatbot Obat":
         st.title("💊 Sistem Tanya Jawab Obat")
-        st.markdown("Sistem informasi obat dengan data langsung dari **FDA API**")
+        st.markdown("Sistem informasi obat dengan data langsung dari **FDA API** dan terjemahan menggunakan **Gemini AI**")
 
         st.markdown("""
         <div class="fda-indicator">
@@ -744,32 +947,17 @@ def main():
         </div>
         """, unsafe_allow_html=True)
 
-        # Informasi tentang terjemahan selektif
-        with st.expander("ℹ️ Tentang Sistem Terjemahan", expanded=False):
-            st.markdown("""
-            **🔍 Sistem Terjemahan Selektif:**
-            
-            - **Nama obat** tetap dalam bahasa Inggris (acetaminophen, ibuprofen, dll)
-            - **Angka dan dosis** tidak diubah (mg, ml, tablet, dll)
-            - **Istilah medis teknis** dipertahankan
-            - Hanya **penjelasan dan instruksi** yang diterjemahkan jika diperlukan
-            
-            **Contoh:**
-            - "Take 2 tablets every 6 hours" → **"Ambil 2 tablet setiap 6 jam"**
-            - "Acetaminophen 500 mg" → **"Acetaminophen 500 mg"** (tidak berubah)
-            """)
-
         st.markdown("### 💬 Percakapan")
 
         if not st.session_state.messages:
             st.markdown("""
             <div class="welcome-message">
                 <h3>👋 Selamat Datang di Asisten Obat</h3>
-                <p>Dapatkan informasi obat <strong>langsung dari database resmi FDA</strong></p>
+                <p>Dapatkan informasi obat <strong>langsung dari database resmi FDA</strong> dengan terjemahan otomatis ke Bahasa Indonesia</p>
                 <p><strong>💡 Contoh pertanyaan:</strong></p>
                 <p>"Dosis paracetamol?" | "Efek samping amoxicillin?" | "Interaksi obat omeprazole?"</p>
                 <p>"Untuk apa metformin digunakan?" | "Peringatan penggunaan ibuprofen?"</p>
-                <p><em>Catatan: Sistem menjaga informasi asli FDA dengan terjemahan selektif</em></p>
+                <p><em>Catatan: Beberapa obat memiliki nama berbeda di FDA (contoh: Paracetamol = Acetaminophen)</em></p>
             </div>
             """, unsafe_allow_html=True)
         else:
@@ -797,10 +985,10 @@ def main():
                                 card_content = f"""
                                 <div class="drug-card">
                                     <h4>💊 {drug['nama']}</h4>
-                                    <p><strong>Nama Generik:</strong> {drug['nama_generik']}</p>
-                                    <p><strong>Merek Dagang:</strong> {drug['merek_dagang']}</p>
                                     <p><strong>Golongan:</strong> {drug['golongan']}</p>
+                                    <p><strong>Merek Dagang:</strong> {drug['merek_dagang']}</p>
                                     <p><strong>Indikasi:</strong> {drug['indikasi'][:150]}...</p>
+                                    <p><strong>Bentuk:</strong> {drug['bentuk_sediaan']}</p>
                                 """
                                 if 'catatan' in drug:
                                     card_content += f"<p><em>{drug['catatan']}</em></p>"
@@ -869,9 +1057,7 @@ def main():
         Obat mungkin memiliki nama merek berbeda di Indonesia.
         """)
     
-    # ===========================================
     # HALAMAN EVALUASI RAG
-    # ===========================================
     elif page == "📊 Evaluasi RAG":
         st.title("📊 Evaluasi Sistem RAG")
         st.markdown("**Fokus pada evaluasi komponen RETRIEVAL dan GENERATION dari RAG**")
@@ -1045,11 +1231,10 @@ def main():
     st.markdown("---")
     st.markdown(
         "<div style='text-align: center; color: #666;'>"
-        "💊 **Sistem Tanya Jawab Obat dengan RAG** • Terjemahan Selektif • Informasi FDA Asli"
+        "💊 **Sistem Tanya Jawab Obat dengan RAG** • Evaluasi 2 Metrik Inti (MRR & Faithfulness)"
         "</div>", 
         unsafe_allow_html=True
     )
 
 if __name__ == "__main__":
     main()
-
