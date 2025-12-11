@@ -71,7 +71,7 @@ class TranslationService:
             - "May cause drowsiness" → "Dapat menyebabkan kantuk"
             - "For the management of pain" → "Untuk penanganan nyeri"
             
-            HASIL TERJEMAHAN:
+            
             """
             
             response = model.generate_content(prompt)
@@ -941,12 +941,12 @@ def main():
     # HALAMAN CHATBOT
     if page == "🏠 Chatbot Obat":
         st.title("💊 Sistem Tanya Jawab Obat")
-        st.markdown("Sistem informasi obat dengan data langsung dari **FDA API** dan terjemahan menggunakan **Gemini 2.5 Flash Lite**")
+        st.markdown("Sistem informasi obat dengan data langsung dari **FDA API** ")
 
         st.markdown("""
         <div class="fda-indicator">
-            🏥 <strong>DATA RESMI FDA</strong> - Informasi obat langsung dari U.S. Food and Drug Administration
-            <br>🤖 <strong>MODEL: Gemini 2.5 Flash Lite</strong> - Model khusus untuk output teks
+            🏥 <strong>DATA RESMI FDA</strong> 
+            <br>🤖 <strong></strong> - Model khusus untuk output teks
         </div>
         """, unsafe_allow_html=True)
 
@@ -956,8 +956,8 @@ def main():
             st.markdown("""
             <div class="welcome-message">
                 <h3>👋 Selamat Datang di Asisten Obat</h3>
-                <p>Dapatkan informasi obat <strong>langsung dari database resmi FDA</strong> dengan terjemahan otomatis ke Bahasa Indonesia</p>
-                <p><strong>🤖 Model AI:</strong> Gemini 2.5 Flash Lite (Text-out model)</p>
+                <p>Dapatkan informasi obat <strong>langsung dari database resmi FDA</strong> </p>
+                <p><strong>🤖 Model AI:</strong> </p>
                 <p><strong>💡 Contoh pertanyaan:</strong></p>
                 <p>"Dosis paracetamol?" | "Efek samping amoxicillin?" | "Interaksi obat omeprazole?"</p>
                 <p>"Untuk apa metformin digunakan?" | "Peringatan penggunaan ibuprofen?"</p>
@@ -979,7 +979,7 @@ def main():
                     st.markdown(f"""
                     <div class="bot-message">
                         <div>{message["content"]}</div>
-                        <div class="message-time">{message["timestamp"]} • Sumber: FDA API • Model: Gemini 2.5 Flash Lite</div>
+                        <div class="message-time">{message["timestamp"]} • Sumber: FDA API </div>
                     </div>
                     """, unsafe_allow_html=True)
                     
@@ -1081,7 +1081,7 @@ def main():
             - **Target**: > 0.85 (85%)
             - **Baseline**: Samudra dkk. (2024): 0.620
             
-            **🤖 Model AI:** Gemini 2.5 Flash Lite
+            
             </div>
             """, unsafe_allow_html=True)
         
@@ -1228,7 +1228,7 @@ def main():
             1. **MRR (Retrieval)** - Mengukur akurasi dalam menemukan obat yang relevan
             2. **Faithfulness (Generation)** - Mengukur kesetiaan jawaban ke sumber FDA
             
-            **🤖 Model AI:** Gemini 2.5 Flash Lite
+          
             
             **Test Cases:** 10 pertanyaan representatif tentang obat
             
@@ -1239,7 +1239,7 @@ def main():
     st.markdown("---")
     st.markdown(
         "<div style='text-align: center; color: #666;'>"
-        "💊 **Sistem Tanya Jawab Obat dengan RAG** • Model: Gemini 2.5 Flash Lite • Evaluasi 2 Metrik Inti (MRR & Faithfulness)"
+        "💊 **Sistem Tanya Jawab Obat dengan RAG** "
         "</div>", 
         unsafe_allow_html=True
     )
