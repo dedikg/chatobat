@@ -650,7 +650,7 @@ class FocusedRAGEvaluator:
                 "question_type": "dosis",
                 "key_info_expected": ["dosis", "atorvastatin"]
             },
- {
+            {
                 "id": 7,
                 "question": "Efek samping simvastatin?",
                 "expected_drug": "simvastatin",
@@ -742,40 +742,40 @@ class FocusedRAGEvaluator:
         
         return np.mean(faithful_scores) if faithful_scores else 0
     
-def run_evaluation(self):
-    """Jalankan evaluasi 2 metrik utama RAG"""
-    try:
-        # Hitung metrik
-        mrr_score = self.calculate_mrr()
-        faithfulness_score = self.calculate_faithfulness()
-        
-        mrr_percentage = mrr_score * 100
-        faithfulness_percentage = faithfulness_score * 100
-        rag_percentage = ((mrr_score + faithfulness_score) / 2) * 100
-        
-        results = {
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "total_test_cases": len(self.test_set),
-            "MRR_raw": float(mrr_score),           # Nilai asli 0-1
-            "MRR": float(mrr_percentage),          # Untuk display 0-100%
-            "Faithfulness_raw": float(faithfulness_score),
-            "Faithfulness": float(faithfulness_percentage),
-            "RAG_Score_raw": float((mrr_score + faithfulness_score) / 2),
-            "RAG_Score": float(rag_percentage),
-            "test_case_details": self._get_test_case_details()  # ✅ Pindah ke sini
-        }
-        
-        return results  # ✅ Jangan lupa return!
-        
-    except Exception as e:
-        st.error(f"❌ Error dalam evaluasi: {str(e)}")
-        return {
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "error": str(e),
-            "MRR": 0,
-            "Faithfulness": 0,
-            "RAG_Score": 0
-        }
+    def run_evaluation(self):  # ✅ PERBAIKAN: Method ini harus dalam class
+        """Jalankan evaluasi 2 metrik utama RAG"""
+        try:
+            # Hitung metrik
+            mrr_score = self.calculate_mrr()
+            faithfulness_score = self.calculate_faithfulness()
+            
+            mrr_percentage = mrr_score * 100
+            faithfulness_percentage = faithfulness_score * 100
+            rag_percentage = ((mrr_score + faithfulness_score) / 2) * 100
+            
+            results = {
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "total_test_cases": len(self.test_set),
+                "MRR_raw": float(mrr_score),           # Nilai asli 0-1
+                "MRR": float(mrr_percentage),          # Untuk display 0-100%
+                "Faithfulness_raw": float(faithfulness_score),
+                "Faithfulness": float(faithfulness_percentage),
+                "RAG_Score_raw": float((mrr_score + faithfulness_score) / 2),
+                "RAG_Score": float(rag_percentage),
+                "test_case_details": self._get_test_case_details()  # ✅ Pindah ke sini
+            }
+            
+            return results  # ✅ Jangan lupa return!
+            
+        except Exception as e:
+            st.error(f"❌ Error dalam evaluasi: {str(e)}")
+            return {
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "error": str(e),
+                "MRR": 0,
+                "Faithfulness": 0,
+                "RAG_Score": 0
+            }
     
     def _get_test_case_details(self):
         """Ambil detail hasil untuk setiap test case"""
@@ -1089,14 +1089,15 @@ def main():
         # Tombol evaluasi
         col1, col2, col3 = st.columns([2, 1, 1])
         
-        with col1:
-            if st.button("🚀 Jalankan Evaluasi RAG", use_container_width=True, type="primary"):
-                with st.spinner("Menjalankan evaluasi pada 10 test cases..."):
-                    st.session_state.evaluator = FocusedRAGEvaluator(assistant)
-                    results = st.session_state.evaluator.run_evaluation()
-                    st.session_state.evaluation_results = results
-                    st.success("✅ Evaluasi RAG selesai!")
-                    st.rerun()
+
+with col1:
+    if st.button("🚀 Jalankan Evaluasi RAG", use_container_width=True, type="primary"):
+        with st.spinner("Menjalankan evaluasi pada 10 test cases..."):
+            st.session_state.evaluator = FocusedRAGEvaluator(assistant)
+            results = st.session_state.evaluator.run_evaluation()  
+            st.session_state.evaluation_results = results
+            st.success("✅ Evaluasi RAG selesai!")
+            st.rerun()
         
         with col2:
             if st.button("📥 Simpan Hasil", use_container_width=True):
