@@ -1148,51 +1148,52 @@ def main():
                 else:
                     return "poor-score"
             
-            with col1:
-                mrr = results["MRR"]
-                color_class = get_score_color(mrr, 0.8)
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-label">MRR</div>
-                    <div class="metric-value {color_class}">{mrr:.3f}</div>
-                    <div>Retrieval Accuracy</div>
-                </div>
-                """, unsafe_allow_html=True)
-                st.caption(f"**Target:** >0.800 | **Baseline:** 0.930")
-            
-            with col2:
-                faithfulness = results["Faithfulness"]
-                color_class = get_score_color(faithfulness, 0.85)
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-label">Faithfulness</div>
-                    <div class="metric-value {color_class}">{faithfulness:.3f}</div>
-                    <div>Generation Reliability</div>
-                </div>
-                """, unsafe_allow_html=True)
-                st.caption(f"**Target:** >0.850 | **Baseline:** 0.620")
-            
-            with col3:
-                rag_score = results["RAG_Score"]
-                if rag_score >= 0.8:
-                    rag_color = "#4CAF50"
-                    rag_status = "Excellent"
-                elif rag_score >= 0.7:
-                    rag_color = "#FF9800"
-                    rag_status = "Good"
-                else:
-                    rag_color = "#F44336"
-                    rag_status = "Needs Improvement"
-                
-                st.markdown(f"""
-                <div class="rag-score-card">
-                    <div style="font-size: 1em; opacity: 0.9;">RAG Score</div>
-                    <div style="font-size: 2.5em; font-weight: bold;">{rag_score:.3f}</div>
-                    <div style="font-size: 0.9em; font-weight: bold;">{rag_status}</div>
-                    <div style="font-size: 0.8em; opacity: 0.8;">Average of 2 Metrics</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
+         # Di bagian "Tampilkan hasil evaluasi", ganti kode ini:
+
+with col1:
+    mrr = results["MRR"]  # Ini sudah dalam persentase
+    color_class = get_score_color(mrr, 0.8)
+    st.markdown(f"""
+    <div class="metric-card">
+        <div class="metric-label">MRR</div>
+        <div class="metric-value {color_class}">{mrr:.1f}%</div>  <!-- Tambahkan % -->
+        <div>Retrieval Accuracy</div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.caption(f"**Target:** >80.0% | **Baseline:** 93.0%")
+
+with col2:
+    faithfulness = results["Faithfulness"]
+    color_class = get_score_color(faithfulness, 0.85)
+    st.markdown(f"""
+    <div class="metric-card">
+        <div class="metric-label">Faithfulness</div>
+        <div class="metric-value {color_class}">{faithfulness:.1f}%</div>  <!-- Tambahkan % -->
+        <div>Generation Reliability</div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.caption(f"**Target:** >85.0% | **Baseline:** 62.0%")
+
+with col3:
+    rag_score = results["RAG_Score"]
+    if rag_score >= 80.0:  # Ubah threshold karena sekarang persentase
+        rag_color = "#4CAF50"
+        rag_status = "Excellent"
+    elif rag_score >= 70.0:
+        rag_color = "#FF9800"
+        rag_status = "Good"
+    else:
+        rag_color = "#F44336"
+        rag_status = "Needs Improvement"
+    
+    st.markdown(f"""
+    <div class="rag-score-card">
+        <div style="font-size: 1em; opacity: 0.9;">RAG Score</div>
+        <div style="font-size: 2.5em; font-weight: bold;">{rag_score:.1f}%</div>  <!-- Tambahkan % -->
+        <div style="font-size: 0.9em; font-weight: bold;">{rag_status}</div>
+        <div style="font-size: 0.8em; opacity: 0.8;">Average of 2 Metrics</div>
+    </div>
+    """, unsafe_allow_html=True)
             # Detail hasil
             with st.expander("📋 Detail Hasil Evaluasi"):
                 st.json(results)
