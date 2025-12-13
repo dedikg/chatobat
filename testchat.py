@@ -1094,7 +1094,7 @@ with col1:
     if st.button("🚀 Jalankan Evaluasi RAG", use_container_width=True, type="primary"):
         with st.spinner("Menjalankan evaluasi pada 10 test cases..."):
             st.session_state.evaluator = FocusedRAGEvaluator(assistant)
-            results = st.session_state.evaluator.run_evaluation()  
+            results = st.session_state.evaluator.run_evaluation()  # ✅ Ini akan bekerja sekarang
             st.session_state.evaluation_results = results
             st.success("✅ Evaluasi RAG selesai!")
             st.rerun()
