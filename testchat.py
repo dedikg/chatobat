@@ -1140,13 +1140,14 @@ def main():
             # Tampilkan metrik
             col1, col2, col3 = st.columns([1, 1, 1])  # ✅ Ini kolom baru untuk metrik
             
-            def get_score_color(score, target):
-                if score >= target:
-                    return "good-score"
-                elif score >= target * 0.8:
-                    return "medium-score"
-                else:
-                    return "poor-score"
+           def get_score_color(score, target_percentage):
+    """Score dalam persentase, target juga dalam persentase"""
+    if score >= target_percentage:
+        return "good-score"
+    elif score >= target_percentage * 0.8:
+        return "medium-score"
+    else:
+        return "poor-score"
             
          # Di bagian "Tampilkan hasil evaluasi", ganti kode ini:
 
