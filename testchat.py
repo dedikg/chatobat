@@ -756,23 +756,26 @@ def run_evaluation(self):
         results = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "total_test_cases": len(self.test_set),
-            "MRR_raw": float(mrr_score),          # Simpan nilai asli (0-1)
-            "MRR": float(mrr_percentage),         # Untuk display (0-100%)
+            "MRR_raw": float(mrr_score),           # Nilai asli 0-1
+            "MRR": float(mrr_percentage),          # Untuk display 0-100%
             "Faithfulness_raw": float(faithfulness_score),
             "Faithfulness": float(faithfulness_percentage),
             "RAG_Score_raw": float((mrr_score + faithfulness_score) / 2),
-            "RAG_Score": float(rag_percentage)
+            "RAG_Score": float(rag_percentage),
+            "test_case_details": self._get_test_case_details()  # ✅ Pindah ke sini
         }
-            
-        except Exception as e:
-            st.error(f"❌ Error dalam evaluasi: {str(e)}")
-            return {
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "error": str(e),
-                "MRR": 0,
-                "Faithfulness": 0,
-                "RAG_Score": 0
-            }
+        
+        return results  # ✅ Jangan lupa return!
+        
+    except Exception as e:
+        st.error(f"❌ Error dalam evaluasi: {str(e)}")
+        return {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "error": str(e),
+            "MRR": 0,
+            "Faithfulness": 0,
+            "RAG_Score": 0
+        }
     
     def _get_test_case_details(self):
         """Ambil detail hasil untuk setiap test case"""
