@@ -1138,26 +1138,24 @@ def main():
             st.markdown(f"**Test Cases:** {results['total_test_cases']} pertanyaan")
             
             # Tampilkan metrik
-            col1, col2, col3 = st.columns([1, 1, 1])  # ✅ Ini kolom baru untuk metrik
-            
-           def get_score_color(score, target_percentage):
-    """Score dalam persentase, target juga dalam persentase"""
+            col1, col2, col3 = st.columns([1, 1, 1])
+
+def get_score_color(score, target_percentage):
+    """Score dalam persentase (0-100)"""
     if score >= target_percentage:
         return "good-score"
     elif score >= target_percentage * 0.8:
         return "medium-score"
     else:
         return "poor-score"
-            
-         # Di bagian "Tampilkan hasil evaluasi", ganti kode ini:
 
 with col1:
-    mrr = results["MRR"]  # Ini sudah dalam persentase
-    color_class = get_score_color(mrr, 0.8)
+    mrr = results["MRR"]  # Nilai dalam persentase (misal: 100.0)
+    color_class = get_score_color(mrr, 80.0)  # Target 80%
     st.markdown(f"""
     <div class="metric-card">
         <div class="metric-label">MRR</div>
-        <div class="metric-value {color_class}">{mrr:.1f}%</div>  <!-- Tambahkan % -->
+        <div class="metric-value {color_class}">{mrr:.1f}%</div>
         <div>Retrieval Accuracy</div>
     </div>
     """, unsafe_allow_html=True)
@@ -1165,11 +1163,11 @@ with col1:
 
 with col2:
     faithfulness = results["Faithfulness"]
-    color_class = get_score_color(faithfulness, 0.85)
+    color_class = get_score_color(faithfulness, 85.0)  # Target 85%
     st.markdown(f"""
     <div class="metric-card">
         <div class="metric-label">Faithfulness</div>
-        <div class="metric-value {color_class}">{faithfulness:.1f}%</div>  <!-- Tambahkan % -->
+        <div class="metric-value {color_class}">{faithfulness:.1f}%</div>
         <div>Generation Reliability</div>
     </div>
     """, unsafe_allow_html=True)
@@ -1177,7 +1175,7 @@ with col2:
 
 with col3:
     rag_score = results["RAG_Score"]
-    if rag_score >= 80.0:  # Ubah threshold karena sekarang persentase
+    if rag_score >= 80.0:
         rag_color = "#4CAF50"
         rag_status = "Excellent"
     elif rag_score >= 70.0:
@@ -1190,7 +1188,7 @@ with col3:
     st.markdown(f"""
     <div class="rag-score-card">
         <div style="font-size: 1em; opacity: 0.9;">RAG Score</div>
-        <div style="font-size: 2.5em; font-weight: bold;">{rag_score:.1f}%</div>  <!-- Tambahkan % -->
+        <div style="font-size: 2.5em; font-weight: bold;">{rag_score:.1f}%</div>
         <div style="font-size: 0.9em; font-weight: bold;">{rag_status}</div>
         <div style="font-size: 0.8em; opacity: 0.8;">Average of 2 Metrics</div>
     </div>
