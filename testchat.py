@@ -1063,6 +1063,7 @@ def main():
         """)
     
     # HALAMAN EVALUASI RAG
+      # HALAMAN EVALUASI RAG
     elif page == "📊 Evaluasi RAG":
         st.title("📊 Evaluasi Sistem RAG")
         st.markdown("**Fokus pada evaluasi komponen RETRIEVAL dan GENERATION dari RAG**")
@@ -1087,17 +1088,16 @@ def main():
             """, unsafe_allow_html=True)
         
         # Tombol evaluasi
-        col1, col2, col3 = st.columns([2, 1, 1])
+        col1, col2, col3 = st.columns([2, 1, 1])  # ✅ INI HARUS DI LUAR WITH BLOCK!
         
-
-with col1:
-    if st.button("🚀 Jalankan Evaluasi RAG", use_container_width=True, type="primary"):
-        with st.spinner("Menjalankan evaluasi pada 10 test cases..."):
-            st.session_state.evaluator = FocusedRAGEvaluator(assistant)
-            results = st.session_state.evaluator.run_evaluation()  # ✅ Ini akan bekerja sekarang
-            st.session_state.evaluation_results = results
-            st.success("✅ Evaluasi RAG selesai!")
-            st.rerun()
+        with col1:
+            if st.button("🚀 Jalankan Evaluasi RAG", use_container_width=True, type="primary"):
+                with st.spinner("Menjalankan evaluasi pada 10 test cases..."):
+                    st.session_state.evaluator = FocusedRAGEvaluator(assistant)
+                    results = st.session_state.evaluator.run_evaluation()
+                    st.session_state.evaluation_results = results
+                    st.success("✅ Evaluasi RAG selesai!")
+                    st.rerun()
         
         with col2:
             if st.button("📥 Simpan Hasil", use_container_width=True):
@@ -1138,7 +1138,7 @@ with col1:
             st.markdown(f"**Test Cases:** {results['total_test_cases']} pertanyaan")
             
             # Tampilkan metrik
-            col1, col2, col3 = st.columns([1, 1, 1])
+            col1, col2, col3 = st.columns([1, 1, 1])  # ✅ Ini kolom baru untuk metrik
             
             def get_score_color(score, target):
                 if score >= target:
