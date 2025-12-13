@@ -309,7 +309,7 @@ class FDADrugAPI:
         return "Tidak tersedia"
 
 # ===========================================
-# SIMPLE RAG ASSISTANT - DENGAN MODEL BARU
+# RAG MODEL
 # ===========================================
 class SimpleRAGPharmaAssistant:
     def __init__(self):
@@ -541,9 +541,9 @@ class SimpleRAGPharmaAssistant:
                 'timestamp': datetime.now()
             }
 
-# ===========================================
-# KELAS DRUG DETECTOR (TIDAK BERUBAH)
-# ===========================================
+
+# KELAS DRUG DETECTOR
+
 class EnhancedDrugDetector:
     def __init__(self):
         self.drug_dictionary = {
@@ -600,7 +600,7 @@ class EnhancedDrugDetector:
         return self.fda_name_mapping.get(drug_name, drug_name)
 
 # ===========================================
-# KELAS EVALUASI (TIDAK BERUBAH)
+# EVALUASI MODEL
 # ===========================================
 class FocusedRAGEvaluator:
     def __init__(self, assistant):
@@ -807,7 +807,7 @@ class FocusedRAGEvaluator:
         return details
 
 # ===========================================
-# FUNGSI UTAMA
+# MAIN SISTEM
 # ===========================================
 def main():
     # Initialize assistant dengan versi yang diperbaiki
