@@ -1062,8 +1062,7 @@ def main():
         Obat mungkin memiliki nama merek berbeda di Indonesia.
         """)
     
-    # HALAMAN EVALUASI RAG
-      # HALAMAN EVALUASI RAG
+       # HALAMAN EVALUASI RAG
     elif page == "📊 Evaluasi RAG":
         st.title("📊 Evaluasi Sistem RAG")
         st.markdown("**Fokus pada evaluasi komponen RETRIEVAL dan GENERATION dari RAG**")
@@ -1088,7 +1087,7 @@ def main():
             """, unsafe_allow_html=True)
         
         # Tombol evaluasi
-        col1, col2, col3 = st.columns([2, 1, 1])  # ✅ INI HARUS DI LUAR WITH BLOCK!
+        col1, col2, col3 = st.columns([2, 1, 1])
         
         with col1:
             if st.button("🚀 Jalankan Evaluasi RAG", use_container_width=True, type="primary"):
@@ -1139,60 +1138,61 @@ def main():
             
             # Tampilkan metrik
             col1, col2, col3 = st.columns([1, 1, 1])
-
-def get_score_color(score, target_percentage):
-    """Score dalam persentase (0-100)"""
-    if score >= target_percentage:
-        return "good-score"
-    elif score >= target_percentage * 0.8:
-        return "medium-score"
-    else:
-        return "poor-score"
-
-with col1:
-    mrr = results["MRR"]  # Nilai dalam persentase (misal: 100.0)
-    color_class = get_score_color(mrr, 80.0)  # Target 80%
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">MRR</div>
-        <div class="metric-value {color_class}">{mrr:.1f}%</div>
-        <div>Retrieval Accuracy</div>
-    </div>
-    """, unsafe_allow_html=True)
-    st.caption(f"**Target:** >80.0% | **Baseline:** 93.0%")
-
-with col2:
-    faithfulness = results["Faithfulness"]
-    color_class = get_score_color(faithfulness, 85.0)  # Target 85%
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">Faithfulness</div>
-        <div class="metric-value {color_class}">{faithfulness:.1f}%</div>
-        <div>Generation Reliability</div>
-    </div>
-    """, unsafe_allow_html=True)
-    st.caption(f"**Target:** >85.0% | **Baseline:** 62.0%")
-
-with col3:
-    rag_score = results["RAG_Score"]
-    if rag_score >= 80.0:
-        rag_color = "#4CAF50"
-        rag_status = "Excellent"
-    elif rag_score >= 70.0:
-        rag_color = "#FF9800"
-        rag_status = "Good"
-    else:
-        rag_color = "#F44336"
-        rag_status = "Needs Improvement"
-    
-    st.markdown(f"""
-    <div class="rag-score-card">
-        <div style="font-size: 1em; opacity: 0.9;">RAG Score</div>
-        <div style="font-size: 2.5em; font-weight: bold;">{rag_score:.1f}%</div>
-        <div style="font-size: 0.9em; font-weight: bold;">{rag_status}</div>
-        <div style="font-size: 0.8em; opacity: 0.8;">Average of 2 Metrics</div>
-    </div>
-    """, unsafe_allow_html=True)
+            
+            def get_score_color(score, target_percentage):
+                """Score dalam persentase (0-100)"""
+                if score >= target_percentage:
+                    return "good-score"
+                elif score >= target_percentage * 0.8:
+                    return "medium-score"
+                else:
+                    return "poor-score"
+            
+            with col1:
+                mrr = results["MRR"]  # Nilai dalam persentase (misal: 100.0)
+                color_class = get_score_color(mrr, 80.0)  # Target 80%
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-label">MRR</div>
+                    <div class="metric-value {color_class}">{mrr:.1f}%</div>
+                    <div>Retrieval Accuracy</div>
+                </div>
+                """, unsafe_allow_html=True)
+                st.caption(f"**Target:** >80.0% | **Baseline:** 93.0%")
+            
+            with col2:
+                faithfulness = results["Faithfulness"]
+                color_class = get_score_color(faithfulness, 85.0)  # Target 85%
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-label">Faithfulness</div>
+                    <div class="metric-value {color_class}">{faithfulness:.1f}%</div>
+                    <div>Generation Reliability</div>
+                </div>
+                """, unsafe_allow_html=True)
+                st.caption(f"**Target:** >85.0% | **Baseline:** 62.0%")
+            
+            with col3:
+                rag_score = results["RAG_Score"]
+                if rag_score >= 80.0:
+                    rag_color = "#4CAF50"
+                    rag_status = "Excellent"
+                elif rag_score >= 70.0:
+                    rag_color = "#FF9800"
+                    rag_status = "Good"
+                else:
+                    rag_color = "#F44336"
+                    rag_status = "Needs Improvement"
+                
+                st.markdown(f"""
+                <div class="rag-score-card">
+                    <div style="font-size: 1em; opacity: 0.9;">RAG Score</div>
+                    <div style="font-size: 2.5em; font-weight: bold;">{rag_score:.1f}%</div>
+                    <div style="font-size: 0.9em; font-weight: bold;">{rag_status}</div>
+                    <div style="font-size: 0.8em; opacity: 0.8;">Average of 2 Metrics</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
             # Detail hasil
             with st.expander("📋 Detail Hasil Evaluasi"):
                 st.json(results)
@@ -1229,8 +1229,6 @@ with col3:
             
             1. **MRR (Retrieval)** - Mengukur akurasi dalam menemukan obat yang relevan
             2. **Faithfulness (Generation)** - Mengukur kesetiaan jawaban ke sumber FDA
-            
-           
             
             **Test Cases:** 10 pertanyaan representatif tentang obat
             
