@@ -742,26 +742,27 @@ class FocusedRAGEvaluator:
         
         return np.mean(faithful_scores) if faithful_scores else 0
     
-    def run_evaluation(self):
-        """Jalankan evaluasi 2 metrik utama RAG"""
-        try:
-            # Hitung kedua metrik
-            mrr_score = self.calculate_mrr()
-            faithfulness_score = self.calculate_faithfulness()
-            
-            # Kompilasi hasil
-            results = {
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "total_test_cases": len(self.test_set),
-                "MRR": float(mrr_score),
-                "Faithfulness": float(faithfulness_score),
-                "RAG_Score": float((mrr_score + faithfulness_score) / 2)
-            }
-            
-            # Simpan detail test case untuk analisis
-            results["test_case_details"] = self._get_test_case_details()
-            
-            return results
+def run_evaluation(self):
+    """Jalankan evaluasi 2 metrik utama RAG"""
+    try:
+        # Hitung metrik
+        mrr_score = self.calculate_mrr()
+        faithfulness_score = self.calculate_faithfulness()
+        
+        mrr_percentage = mrr_score * 100
+        faithfulness_percentage = faithfulness_score * 100
+        rag_percentage = ((mrr_score + faithfulness_score) / 2) * 100
+        
+        results = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "total_test_cases": len(self.test_set),
+            "MRR_raw": float(mrr_score),          # Simpan nilai asli (0-1)
+            "MRR": float(mrr_percentage),         # Untuk display (0-100%)
+            "Faithfulness_raw": float(faithfulness_score),
+            "Faithfulness": float(faithfulness_percentage),
+            "RAG_Score_raw": float((mrr_score + faithfulness_score) / 2),
+            "RAG_Score": float(rag_percentage)
+        }
             
         except Exception as e:
             st.error(f"❌ Error dalam evaluasi: {str(e)}")
