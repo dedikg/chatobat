@@ -26,6 +26,13 @@ except Exception as e:
     gemini_available = False
 
 # ===========================================
+# HELPER FUNCTIONS
+# ===========================================
+def safe_get(dictionary, key, default="Tidak tersedia"):
+    """Safe get dengan default value"""
+    return dictionary.get(key, default) if dictionary else default
+
+# ===========================================
 # TRANSLATION SERVICE
 # ===========================================
 class TranslationService:
@@ -99,112 +106,112 @@ class FDADrugAPI:
         # Database fallback untuk dosis yang tidak lengkap di FDA
         self.dosage_fallback_db = {
             'acetaminophen': {
-                'dewasa': '500-1000 mg setiap 4-6 jam',
-                'maksimal': 'Maksimal 4000 mg per hari',
-                'anak': '10-15 mg/kgBB setiap 4-6 jam',
-                'catatan': 'Hati-hati pada pasien gangguan hati'
+                'dosis_dewasa': '500-1000 mg setiap 4-6 jam',
+                'dosis_maksimal': 'Maksimal 4000 mg per hari',
+                'dosis_anak': '10-15 mg/kgBB setiap 4-6 jam',
+                'catatan_dosis': 'Hati-hati pada pasien gangguan hati'
             },
             'paracetamol': {
-                'dewasa': '500-1000 mg setiap 4-6 jam',
-                'maksimal': 'Maksimal 4000 mg per hari',
-                'anak': '10-15 mg/kgBB setiap 4-6 jam',
-                'catatan': 'Hati-hati pada pasien gangguan hati'
+                'dosis_dewasa': '500-1000 mg setiap 4-6 jam',
+                'dosis_maksimal': 'Maksimal 4000 mg per hari',
+                'dosis_anak': '10-15 mg/kgBB setiap 4-6 jam',
+                'catatan_dosis': 'Hati-hati pada pasien gangguan hati'
             },
             'amoxicillin': {
-                'dewasa': '250-500 mg setiap 8 jam atau 875 mg setiap 12 jam',
-                'maksimal': 'Maksimal 3000 mg per hari',
-                'anak': '20-50 mg/kgBB/hari dibagi 3 dosis',
-                'catatan': 'Untuk infeksi bakteri'
+                'dosis_dewasa': '250-500 mg setiap 8 jam atau 875 mg setiap 12 jam',
+                'dosis_maksimal': 'Maksimal 3000 mg per hari',
+                'dosis_anak': '20-50 mg/kgBB/hari dibagi 3 dosis',
+                'catatan_dosis': 'Untuk infeksi bakteri'
             },
             'omeprazole': {
-                'dewasa': '20-40 mg sekali sehari sebelum makan',
-                'maksimal': 'Maksimal 40 mg per hari',
-                'anak': 'Tidak dianjurkan untuk anak <1 tahun',
-                'catatan': 'Untuk tukak lambung dan GERD'
+                'dosis_dewasa': '20-40 mg sekali sehari sebelum makan',
+                'dosis_maksimal': 'Maksimal 40 mg per hari',
+                'dosis_anak': 'Tidak dianjurkan untuk anak <1 tahun',
+                'catatan_dosis': 'Untuk tukak lambung dan GERD'
             },
             'ibuprofen': {
-                'dewasa': '200-400 mg setiap 4-6 jam',
-                'maksimal': 'Maksimal 1200 mg per hari',
-                'anak': '5-10 mg/kgBB setiap 6-8 jam',
-                'catatan': 'Hati-hati pada gangguan lambung'
+                'dosis_dewasa': '200-400 mg setiap 4-6 jam',
+                'dosis_maksimal': 'Maksimal 1200 mg per hari',
+                'dosis_anak': '5-10 mg/kgBB setiap 6-8 jam',
+                'catatan_dosis': 'Hati-hati pada gangguan lambung'
             },
             'albuterol': {
-                'dewasa': 'Inhalasi: 1-2 inhalasi setiap 4-6 jam',
-                'maksimal': 'Maksimal 8 inhalasi per hari',
-                'anak': 'Inhalasi: 1 inhalasi setiap 4-6 jam',
-                'catatan': 'Untuk asma dan bronkospasme'
+                'dosis_dewasa': 'Inhalasi: 1-2 inhalasi setiap 4-6 jam',
+                'dosis_maksimal': 'Maksimal 8 inhalasi per hari',
+                'dosis_anak': 'Inhalasi: 1 inhalasi setiap 4-6 jam',
+                'catatan_dosis': 'Untuk asma dan bronkospasme'
             },
             'salbutamol': {
-                'dewasa': 'Inhalasi: 1-2 inhalasi setiap 4-6 jam',
-                'maksimal': 'Maksimal 8 inhalasi per hari',
-                'anak': 'Inhalasi: 1 inhalasi setiap 4-6 jam',
-                'catatan': 'Untuk asma dan bronkospasme'
+                'dosis_dewasa': 'Inhalasi: 1-2 inhalasi setiap 4-6 jam',
+                'dosis_maksimal': 'Maksimal 8 inhalasi per hari',
+                'dosis_anak': 'Inhalasi: 1 inhalasi setiap 4-6 jam',
+                'catatan_dosis': 'Untuk asma dan bronkospasme'
             },
             'ascorbic acid': {
-                'dewasa': '500-1000 mg per hari',
-                'maksimal': 'Maksimal 2000 mg per hari',
-                'anak': 'Sesuai kebutuhan, konsultasi dokter',
-                'catatan': 'Suplemen vitamin C'
+                'dosis_dewasa': '500-1000 mg per hari',
+                'dosis_maksimal': 'Maksimal 2000 mg per hari',
+                'dosis_anak': 'Sesuai kebutuhan, konsultasi dokter',
+                'catatan_dosis': 'Suplemen vitamin C'
             },
             'vitamin c': {
-                'dewasa': '500-1000 mg per hari',
-                'maksimal': 'Maksimal 2000 mg per hari',
-                'anak': 'Sesuai kebutuhan, konsultasi dokter',
-                'catatan': 'Suplemen vitamin C'
+                'dosis_dewasa': '500-1000 mg per hari',
+                'dosis_maksimal': 'Maksimal 2000 mg per hari',
+                'dosis_anak': 'Sesuai kebutuhan, konsultasi dokter',
+                'catatan_dosis': 'Suplemen vitamin C'
             },
             'metformin': {
-                'dewasa': '500 mg 2x sehari (awal), dapat ditingkatkan',
-                'maksimal': 'Maksimal 2000 mg per hari',
-                'anak': 'Tidak dianjurkan untuk anak <10 tahun',
-                'catatan': 'Untuk diabetes tipe 2'
+                'dosis_dewasa': '500 mg 2x sehari (awal), dapat ditingkatkan',
+                'dosis_maksimal': 'Maksimal 2000 mg per hari',
+                'dosis_anak': 'Tidak dianjurkan untuk anak <10 tahun',
+                'catatan_dosis': 'Untuk diabetes tipe 2'
             },
             'atorvastatin': {
-                'dewasa': '10-80 mg sekali sehari',
-                'maksimal': 'Maksimal 80 mg per hari',
-                'anak': 'Tidak dianjurkan untuk anak',
-                'catatan': 'Untuk kolesterol tinggi'
+                'dosis_dewasa': '10-80 mg sekali sehari',
+                'dosis_maksimal': 'Maksimal 80 mg per hari',
+                'dosis_anak': 'Tidak dianjurkan untuk anak',
+                'catatan_dosis': 'Untuk kolesterol tinggi'
             },
             'simvastatin': {
-                'dewasa': '10-40 mg sekali sehari',
-                'maksimal': 'Maksimal 40 mg per hari',
-                'anak': 'Tidak dianjurkan untuk anak',
-                'catatan': 'Untuk kolesterol tinggi'
+                'dosis_dewasa': '10-40 mg sekali sehari',
+                'dosis_maksimal': 'Maksimal 40 mg per hari',
+                'dosis_anak': 'Tidak dianjurkan untuk anak',
+                'catatan_dosis': 'Untuk kolesterol tinggi'
             },
             'loratadine': {
-                'dewasa': '10 mg sekali sehari',
-                'maksimal': 'Maksimal 10 mg per hari',
-                'anak': '5 mg sekali sehari (usia 6-12 tahun)',
-                'catatan': 'Untuk alergi'
+                'dosis_dewasa': '10 mg sekali sehari',
+                'dosis_maksimal': 'Maksimal 10 mg per hari',
+                'dosis_anak': '5 mg sekali sehari (usia 6-12 tahun)',
+                'catatan_dosis': 'Untuk alergi'
             },
             'aspirin': {
-                'dewasa': 'Nyeri: 325-650 mg setiap 4 jam',
-                'maksimal': 'Maksimal 4000 mg per hari',
-                'anak': 'Hindari pada anak <16 tahun',
-                'catatan': 'Hati-hati risiko perdarahan'
+                'dosis_dewasa': 'Nyeri: 325-650 mg setiap 4 jam',
+                'dosis_maksimal': 'Maksimal 4000 mg per hari',
+                'dosis_anak': 'Hindari pada anak <16 tahun',
+                'catatan_dosis': 'Hati-hati risiko perdarahan'
             },
             'lansoprazole': {
-                'dewasa': '15-30 mg sekali sehari',
-                'maksimal': 'Maksimal 30 mg per hari',
-                'anak': '0.5-1 mg/kgBB/hari',
-                'catatan': 'Untuk gangguan asam lambung'
+                'dosis_dewasa': '15-30 mg sekali sehari',
+                'dosis_maksimal': 'Maksimal 30 mg per hari',
+                'dosis_anak': '0.5-1 mg/kgBB/hari',
+                'catatan_dosis': 'Untuk gangguan asam lambung'
             },
             'esomeprazole': {
-                'dewasa': '20-40 mg sekali sehari',
-                'maksimal': 'Maksimal 40 mg per hari',
-                'anak': 'Tidak dianjurkan untuk anak <1 tahun',
-                'catatan': 'Untuk tukak lambung'
+                'dosis_dewasa': '20-40 mg sekali sehari',
+                'dosis_maksimal': 'Maksimal 40 mg per hari',
+                'dosis_anak': 'Tidak dianjurkan untuk anak <1 tahun',
+                'catatan_dosis': 'Untuk tukak lambung'
             },
             'cetirizine': {
-                'dewasa': '5-10 mg sekali sehari',
-                'maksimal': 'Maksimal 10 mg per hari',
-                'anak': '2.5-5 mg sekali sehari',
-                'catatan': 'Untuk alergi'
+                'dosis_dewasa': '5-10 mg sekali sehari',
+                'dosis_maksimal': 'Maksimal 10 mg per hari',
+                'dosis_anak': '2.5-5 mg sekali sehari',
+                'catatan_dosis': 'Untuk alergi'
             },
             'dextromethorphan': {
-                'dewasa': '10-20 mg setiap 4 jam',
-                'maksimal': 'Maksimal 120 mg per hari',
-                'anak': '2.5-10 mg setiap 4-6 jam',
-                'catatan': 'Untuk batuk kering'
+                'dosis_dewasa': '10-20 mg setiap 4 jam',
+                'dosis_maksimal': 'Maksimal 120 mg per hari',
+                'dosis_anak': '2.5-10 mg setiap 4-6 jam',
+                'catatan_dosis': 'Untuk batuk kering'
             }
         }
     
@@ -317,10 +324,10 @@ class FDADrugAPI:
             "merek_dagang": ", ".join(openfda.get('brand_name', ['Tidak tersedia']))[:200],
             "golongan": self._get_field(fda_data, 'drug_class', "Tidak tersedia")[:100],
             "indikasi": indications[:500] if indications != "Tidak tersedia" else "Tidak tersedia",
-            "dosis_dewasa": dosage_info['dewasa'][:300] if dosage_info['dewasa'] != "Tidak tersedia" else "Tidak tersedia",
-            "dosis_anak": dosage_info['anak'][:300] if dosage_info['anak'] != "Tidak tersedia" else "Tidak tersedia",
-            "dosis_maksimal": dosage_info['maksimal'][:200] if dosage_info['maksimal'] != "Tidak tersedia" else "Tidak tersedia",
-            "catatan_dosis": dosage_info['catatan'][:200] if dosage_info['catatan'] != "Tidak tersedia" else "Tidak tersedia",
+            "dosis_dewasa": dosage_info.get('dosis_dewasa', 'Tidak tersedia')[:300],
+            "dosis_anak": dosage_info.get('dosis_anak', 'Tidak tersedia')[:300],
+            "dosis_maksimal": dosage_info.get('dosis_maksimal', 'Tidak tersedia')[:200],
+            "catatan_dosis": dosage_info.get('catatan_dosis', 'Tidak tersedia')[:200],
             "efek_samping": side_effects[:500] if side_effects != "Tidak tersedia" else "Tidak tersedia",
             "kontraindikasi": contraindications[:500] if contraindications != "Tidak tersedia" else "Tidak tersedia",
             "interaksi": interactions[:500] if interactions != "Tidak tersedia" else "Tidak tersedia",
@@ -417,16 +424,16 @@ class FDADrugAPI:
     def _get_detailed_dosage_info(self, fda_data: dict, drug_name: str):
         """Dapatkan informasi dosis detail dengan fallback"""
         result = {
-            'dewasa': 'Tidak tersedia',
-            'anak': 'Tidak tersedia',
-            'maksimal': 'Tidak tersedia',
-            'catatan': 'Tidak tersedia'
+            'dosis_dewasa': 'Tidak tersedia',
+            'dosis_anak': 'Tidak tersedia',
+            'dosis_maksimal': 'Tidak tersedia',
+            'catatan_dosis': 'Tidak tersedia'
         }
         
         # Coba ekstrak dari FDA data pertama
         fda_dosage = self._extract_detailed_dosage_from_fda(fda_data)
         
-        if fda_dosage['dewasa'] != 'Tidak tersedia':
+        if fda_dosage['dosis_dewasa'] != 'Tidak tersedia':
             # Jika FDA punya data, gunakan itu
             return fda_dosage
         else:
@@ -439,10 +446,10 @@ class FDADrugAPI:
     def _extract_detailed_dosage_from_fda(self, fda_data: dict):
         """Ekstrak informasi dosis detail dari data FDA"""
         result = {
-            'dewasa': 'Tidak tersedia',
-            'anak': 'Tidak tersedia',
-            'maksimal': 'Tidak tersedia',
-            'catatan': 'Tidak tersedia'
+            'dosis_dewasa': 'Tidak tersedia',
+            'dosis_anak': 'Tidak tersedia',
+            'dosis_maksimal': 'Tidak tersedia',
+            'catatan_dosis': 'Tidak tersedia'
         }
         
         # Cek field dosage_and_administration
@@ -457,7 +464,7 @@ class FDADrugAPI:
             analyzed_dosage = self._analyze_dosage_text(dosage_text)
             
             # Update result dengan informasi yang ditemukan
-            for key in ['dewasa', 'anak', 'maksimal', 'catatan']:
+            for key in ['dosis_dewasa', 'dosis_anak', 'dosis_maksimal', 'catatan_dosis']:
                 if analyzed_dosage.get(key) and analyzed_dosage[key] != 'Tidak tersedia':
                     result[key] = analyzed_dosage[key]
         
@@ -466,10 +473,10 @@ class FDADrugAPI:
     def _analyze_dosage_text(self, text: str):
         """Analisis teks dosis untuk ekstrak informasi spesifik"""
         result = {
-            'dewasa': 'Tidak tersedia',
-            'anak': 'Tidak tersedia',
-            'maksimal': 'Tidak tersedia',
-            'catatan': 'Tidak tersedia'
+            'dosis_dewasa': 'Tidak tersedia',
+            'dosis_anak': 'Tidak tersedia',
+            'dosis_maksimal': 'Tidak tersedia',
+            'catatan_dosis': 'Tidak tersedia'
         }
         
         text_lower = text.lower()
@@ -489,7 +496,7 @@ class FDADrugAPI:
         for pattern in adult_patterns:
             matches = re.findall(pattern, text_lower)
             if matches:
-                result['dewasa'] = self._clean_dosage_text(matches[0])
+                result['dosis_dewasa'] = self._clean_dosage_text(matches[0])
                 break
         
         # Pola pencarian untuk dosis anak
@@ -506,7 +513,7 @@ class FDADrugAPI:
         for pattern in pediatric_patterns:
             matches = re.findall(pattern, text_lower)
             if matches:
-                result['anak'] = self._clean_dosage_text(matches[0])
+                result['dosis_anak'] = self._clean_dosage_text(matches[0])
                 break
         
         # Pola pencarian untuk dosis maksimal
@@ -523,7 +530,7 @@ class FDADrugAPI:
         for pattern in max_patterns:
             matches = re.findall(pattern, text_lower)
             if matches:
-                result['maksimal'] = self._clean_dosage_text(matches[0])
+                result['dosis_maksimal'] = self._clean_dosage_text(matches[0])
                 break
         
         # Ekstrak catatan penting
@@ -532,7 +539,7 @@ class FDADrugAPI:
         for sentence in sentences:
             if any(keyword in sentence.lower() for keyword in warning_keywords):
                 if len(sentence.strip()) > 20:  # Hanya ambil kalimat yang bermakna
-                    result['catatan'] = sentence.strip()[:150]
+                    result['catatan_dosis'] = sentence.strip()[:150]
                     break
         
         return result
@@ -585,14 +592,15 @@ class SimpleRAGPharmaAssistant:
     
     def _translate_all_fields(self, drug_info: dict):
         """Translate SEMUA field yang penting ke Bahasa Indonesia"""
-        fields_to_translate = [
+        # Define semua fields yang mungkin ada
+        possible_fields = [
             'indikasi', 'dosis_dewasa', 'dosis_anak', 'dosis_maksimal',
             'catatan_dosis', 'efek_samping', 'kontraindikasi', 'interaksi', 
             'peringatan', 'golongan', 'bentuk_sediaan', 'route_pemberian',
-            'nama', 'merek_dagang'
+            'nama', 'merek_dagang', 'kekuatan', 'nama_generik'
         ]
         
-        for field in fields_to_translate:
+        for field in possible_fields:
             if field in drug_info and drug_info[field] != "Tidak tersedia":
                 text = drug_info[field]
                 drug_info[field] = self.translator.translate_to_indonesian(text)
@@ -662,19 +670,20 @@ class SimpleRAGPharmaAssistant:
             if 'catatan_fda' in drug_info:
                 context += f"- **Catatan:** {drug_info['catatan_fda']}\n"
             
-            # Tampilkan informasi dosis dengan lengkap jika ada
-            if drug_info['dosis_dewasa'] != "Tidak tersedia":
+            # Tampilkan informasi dosis dengan pengecekan key existence
+            if safe_get(drug_info, 'dosis_dewasa') != "Tidak tersedia":
                 context += f"- **Dosis Dewasa:** {drug_info['dosis_dewasa']}\n"
             
-            if drug_info['dosis_anak'] != "Tidak tersedia":
+            if safe_get(drug_info, 'dosis_anak') != "Tidak tersedia":
                 context += f"- **Dosis Anak:** {drug_info['dosis_anak']}\n"
             
-            if drug_info['dosis_maksimal'] != "Tidak tersedia":
+            if safe_get(drug_info, 'dosis_maksimal') != "Tidak tersedia":
                 context += f"- **Dosis Maksimal:** {drug_info['dosis_maksimal']}\n"
             
-            if drug_info['catatan_dosis'] != "Tidak tersedia":
+            if safe_get(drug_info, 'catatan_dosis') != "Tidak tersedia":
                 context += f"- **Catatan Dosis:** {drug_info['catatan_dosis']}\n"
             
+            # Fields lainnya dengan pengecekan yang sama
             fields_to_display = [
                 ('Nama Generik', 'nama_generik'),
                 ('Merek Dagang', 'merek_dagang'),
@@ -683,11 +692,13 @@ class SimpleRAGPharmaAssistant:
                 ('Efek Samping', 'efek_samping'),
                 ('Kontraindikasi', 'kontraindikasi'),
                 ('Interaksi', 'interaksi'),
-                ('Peringatan', 'peringatan')
+                ('Peringatan', 'peringatan'),
+                ('Bentuk Sediaan', 'bentuk_sediaan'),
+                ('Kekuatan', 'kekuatan')
             ]
             
             for label, field in fields_to_display:
-                if field in drug_info and drug_info[field] != "Tidak tersedia":
+                if safe_get(drug_info, field) != "Tidak tersedia":
                     text = drug_info[field]
                     if len(text) > 300:
                         text = text[:300] + "..."
@@ -1262,37 +1273,37 @@ def main():
                     if "sources" in message and message["sources"]:
                         with st.expander("📚 Informasi Obat dari FDA"):
                             for drug in message["sources"]:
-                                # Highlight informasi dosis jika ada
+                                # Highlight informasi dosis jika ada - DENGAN safe_get
                                 card_content = f"""
                                 <div class="drug-card">
-                                    <h4>💊 {drug['nama']}</h4>
-                                    <p><strong>Golongan:</strong> {drug['golongan']}</p>
-                                    <p><strong>Merek Dagang:</strong> {drug['merek_dagang']}</p>
+                                    <h4>💊 {safe_get(drug, 'nama', 'N/A')}</h4>
+                                    <p><strong>Golongan:</strong> {safe_get(drug, 'golongan')}</p>
+                                    <p><strong>Merek Dagang:</strong> {safe_get(drug, 'merek_dagang')}</p>
                                 """
                                 
-                                # Tampilkan informasi dosis dengan highlight
-                                if drug['dosis_dewasa'] != "Tidak tersedia":
+                                # Tampilkan informasi dosis dengan highlight - DENGAN safe_get
+                                if safe_get(drug, 'dosis_dewasa') != "Tidak tersedia":
                                     card_content += f"""
                                     <div class="dosage-highlight">
                                         <strong>📋 Dosis Dewasa:</strong> {drug['dosis_dewasa']}
                                     </div>
                                     """
                                 
-                                if drug['dosis_anak'] != "Tidak tersedia":
+                                if safe_get(drug, 'dosis_anak') != "Tidak tersedia":
                                     card_content += f"""
                                     <div class="dosage-highlight">
                                         <strong>👶 Dosis Anak:</strong> {drug['dosis_anak']}
                                     </div>
                                     """
                                 
-                                if drug['dosis_maksimal'] != "Tidak tersedia":
+                                if safe_get(drug, 'dosis_maksimal') != "Tidak tersedia":
                                     card_content += f"""
                                     <div class="dosage-highlight">
                                         <strong>⚠️ Dosis Maksimal:</strong> {drug['dosis_maksimal']}
                                     </div>
                                     """
                                 
-                                if drug['catatan_dosis'] != "Tidak tersedia":
+                                if safe_get(drug, 'catatan_dosis') != "Tidak tersedia":
                                     card_content += f"<p><em>📝 Catatan: {drug['catatan_dosis']}</em></p>"
                                 
                                 if 'catatan_fda' in drug:
@@ -1339,7 +1350,7 @@ def main():
                     'timestamp': datetime.now(),
                     'question': user_input,
                     'answer': answer,
-                    'sources': [drug['nama'] for drug in sources],
+                    'sources': [safe_get(drug, 'nama', 'N/A') for drug in sources],
                     'source': 'FDA API'
                 })
                 
@@ -1451,7 +1462,7 @@ def main():
             
             with col1:
                 # Gunakan nilai raw dan konversi ke persentase
-                mrr_raw = results.get("MRR_raw", 0)
+                mrr_raw = safe_get(results, "MRR_raw", 0)
                 mrr_display = mrr_raw * 100
                 color_class = get_score_color(mrr_display, 80.0)
                 
@@ -1471,7 +1482,7 @@ def main():
                 st.caption(f"**Target:** >80.0% | **Baseline:** 93.0%")
             
             with col2:
-                faithfulness_raw = results.get("Faithfulness_raw", 0)
+                faithfulness_raw = safe_get(results, "Faithfulness_raw", 0)
                 faithfulness_display = faithfulness_raw * 100
                 color_class = get_score_color(faithfulness_display, 85.0)
                 
@@ -1485,7 +1496,7 @@ def main():
                 st.caption(f"**Target:** >85.0% | **Baseline:** 62.0%")
             
             with col3:
-                rag_score_raw = results.get("RAG_Score_raw", 0)
+                rag_score_raw = safe_get(results, "RAG_Score_raw", 0)
                 rag_score_display = rag_score_raw * 100
                 
                 if rag_score_display >= 90.0:
@@ -1530,7 +1541,7 @@ def main():
                                 st.info(answer)
                                 
                                 if sources:
-                                    st.success(f"✅ Sumber FDA ditemukan: {sources[0]['nama']}")
+                                    st.success(f"✅ Sumber FDA ditemukan: {safe_get(sources[0], 'nama', 'N/A')}")
                                 else:
                                     st.warning("⚠️ Tidak ada sumber FDA ditemukan")
                                 
