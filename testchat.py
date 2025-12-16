@@ -26,7 +26,7 @@ except Exception as e:
     gemini_available = False
 
 # ===========================================
-# TRANSLATION SERVICE - DENGAN MODEL BARU
+# TRANSLATION SERVICE
 # ===========================================
 class TranslationService:
     def __init__(self):
@@ -49,7 +49,6 @@ class TranslationService:
             if len(text.strip()) < 15 or text.replace('.', '').replace('mg', '').replace('ml', '').replace(' ', '').isalnum():
                 return text
             
-            # PERUBAHAN PENTING: Ganti model ke gemini-2.5-flash-lite
             model = genai.GenerativeModel('gemini-2.5-flash-lite')
             
             prompt = f"""
@@ -91,11 +90,123 @@ class TranslationService:
             return text
 
 # ===========================================
-# FDA API
+# FDA API DENGAN PERBAIKAN EKSTRAKSI DOSIS
 # ===========================================
 class FDADrugAPI:
     def __init__(self):
         self.base_url = "https://api.fda.gov/drug/label.json"
+        
+        # Database fallback untuk dosis yang tidak lengkap di FDA
+        self.dosage_fallback_db = {
+            'acetaminophen': {
+                'dewasa': '500-1000 mg setiap 4-6 jam',
+                'maksimal': 'Maksimal 4000 mg per hari',
+                'anak': '10-15 mg/kgBB setiap 4-6 jam',
+                'catatan': 'Hati-hati pada pasien gangguan hati'
+            },
+            'paracetamol': {
+                'dewasa': '500-1000 mg setiap 4-6 jam',
+                'maksimal': 'Maksimal 4000 mg per hari',
+                'anak': '10-15 mg/kgBB setiap 4-6 jam',
+                'catatan': 'Hati-hati pada pasien gangguan hati'
+            },
+            'amoxicillin': {
+                'dewasa': '250-500 mg setiap 8 jam atau 875 mg setiap 12 jam',
+                'maksimal': 'Maksimal 3000 mg per hari',
+                'anak': '20-50 mg/kgBB/hari dibagi 3 dosis',
+                'catatan': 'Untuk infeksi bakteri'
+            },
+            'omeprazole': {
+                'dewasa': '20-40 mg sekali sehari sebelum makan',
+                'maksimal': 'Maksimal 40 mg per hari',
+                'anak': 'Tidak dianjurkan untuk anak <1 tahun',
+                'catatan': 'Untuk tukak lambung dan GERD'
+            },
+            'ibuprofen': {
+                'dewasa': '200-400 mg setiap 4-6 jam',
+                'maksimal': 'Maksimal 1200 mg per hari',
+                'anak': '5-10 mg/kgBB setiap 6-8 jam',
+                'catatan': 'Hati-hati pada gangguan lambung'
+            },
+            'albuterol': {
+                'dewasa': 'Inhalasi: 1-2 inhalasi setiap 4-6 jam',
+                'maksimal': 'Maksimal 8 inhalasi per hari',
+                'anak': 'Inhalasi: 1 inhalasi setiap 4-6 jam',
+                'catatan': 'Untuk asma dan bronkospasme'
+            },
+            'salbutamol': {
+                'dewasa': 'Inhalasi: 1-2 inhalasi setiap 4-6 jam',
+                'maksimal': 'Maksimal 8 inhalasi per hari',
+                'anak': 'Inhalasi: 1 inhalasi setiap 4-6 jam',
+                'catatan': 'Untuk asma dan bronkospasme'
+            },
+            'ascorbic acid': {
+                'dewasa': '500-1000 mg per hari',
+                'maksimal': 'Maksimal 2000 mg per hari',
+                'anak': 'Sesuai kebutuhan, konsultasi dokter',
+                'catatan': 'Suplemen vitamin C'
+            },
+            'vitamin c': {
+                'dewasa': '500-1000 mg per hari',
+                'maksimal': 'Maksimal 2000 mg per hari',
+                'anak': 'Sesuai kebutuhan, konsultasi dokter',
+                'catatan': 'Suplemen vitamin C'
+            },
+            'metformin': {
+                'dewasa': '500 mg 2x sehari (awal), dapat ditingkatkan',
+                'maksimal': 'Maksimal 2000 mg per hari',
+                'anak': 'Tidak dianjurkan untuk anak <10 tahun',
+                'catatan': 'Untuk diabetes tipe 2'
+            },
+            'atorvastatin': {
+                'dewasa': '10-80 mg sekali sehari',
+                'maksimal': 'Maksimal 80 mg per hari',
+                'anak': 'Tidak dianjurkan untuk anak',
+                'catatan': 'Untuk kolesterol tinggi'
+            },
+            'simvastatin': {
+                'dewasa': '10-40 mg sekali sehari',
+                'maksimal': 'Maksimal 40 mg per hari',
+                'anak': 'Tidak dianjurkan untuk anak',
+                'catatan': 'Untuk kolesterol tinggi'
+            },
+            'loratadine': {
+                'dewasa': '10 mg sekali sehari',
+                'maksimal': 'Maksimal 10 mg per hari',
+                'anak': '5 mg sekali sehari (usia 6-12 tahun)',
+                'catatan': 'Untuk alergi'
+            },
+            'aspirin': {
+                'dewasa': 'Nyeri: 325-650 mg setiap 4 jam',
+                'maksimal': 'Maksimal 4000 mg per hari',
+                'anak': 'Hindari pada anak <16 tahun',
+                'catatan': 'Hati-hati risiko perdarahan'
+            },
+            'lansoprazole': {
+                'dewasa': '15-30 mg sekali sehari',
+                'maksimal': 'Maksimal 30 mg per hari',
+                'anak': '0.5-1 mg/kgBB/hari',
+                'catatan': 'Untuk gangguan asam lambung'
+            },
+            'esomeprazole': {
+                'dewasa': '20-40 mg sekali sehari',
+                'maksimal': 'Maksimal 40 mg per hari',
+                'anak': 'Tidak dianjurkan untuk anak <1 tahun',
+                'catatan': 'Untuk tukak lambung'
+            },
+            'cetirizine': {
+                'dewasa': '5-10 mg sekali sehari',
+                'maksimal': 'Maksimal 10 mg per hari',
+                'anak': '2.5-5 mg sekali sehari',
+                'catatan': 'Untuk alergi'
+            },
+            'dextromethorphan': {
+                'dewasa': '10-20 mg setiap 4 jam',
+                'maksimal': 'Maksimal 120 mg per hari',
+                'anak': '2.5-10 mg setiap 4-6 jam',
+                'catatan': 'Untuk batuk kering'
+            }
+        }
     
     def get_drug_info(self, generic_name: str):
         """Ambil data obat langsung dari FDA API"""
@@ -120,9 +231,9 @@ class FDADrugAPI:
                             best_result = result
                     
                     if best_result:
-                        return self._parse_fda_data(best_result, generic_name)
+                        return self._parse_fda_data_with_dosage_fallback(best_result, generic_name)
                     
-                    return self._parse_fda_data(data['results'][0], generic_name)
+                    return self._parse_fda_data_with_dosage_fallback(data['results'][0], generic_name)
             
             return self._try_alternative_search(generic_name)
                 
@@ -165,29 +276,15 @@ class FDADrugAPI:
             if response.status_code == 200:
                 data = response.json()
                 if data.get('results'):
-                    return self._parse_fda_data(data['results'][0], generic_name)
+                    return self._parse_fda_data_with_dosage_fallback(data['results'][0], generic_name)
         except:
             pass
         
         return None
     
-    def _parse_fda_data(self, fda_data: dict, generic_name: str):
-        """Parse data FDA menjadi format yang kita butuhkan"""
+    def _parse_fda_data_with_dosage_fallback(self, fda_data: dict, generic_name: str):
+        """Parse data FDA dengan fallback untuk dosis yang tidak lengkap"""
         openfda = fda_data.get('openfda', {})
-        
-        def get_field(field_name, default="Tidak tersedia"):
-            value = fda_data.get(field_name, '')
-            
-            if isinstance(value, list):
-                if value:
-                    text = ' '.join([str(v) for v in value if v])
-                    return text[:500]
-                return default
-            
-            if value and str(value).strip():
-                return str(value).strip()[:500]
-            
-            return default
         
         # Gunakan nama Indonesia untuk obat tertentu
         display_name = generic_name.title()
@@ -198,35 +295,62 @@ class FDADrugAPI:
         elif 'ascorbic acid' in generic_name.lower():
             display_name = 'Vitamin C'
         
-        # Ekstrak informasi
+        # Ekstrak informasi dengan method yang diperbaiki
         indications = self._extract_indications(fda_data)
-        dosage = self._extract_dosage(fda_data)
+        
+        # Dapatkan informasi dosis dengan fallback
+        dosage_info = self._get_detailed_dosage_info(fda_data, generic_name.lower())
+        
         side_effects = self._extract_side_effects(fda_data)
         contraindications = self._extract_contraindications(fda_data)
         interactions = self._extract_interactions(fda_data)
         warnings = self._extract_warnings(fda_data)
         
+        # Tambahkan strengths dari openfda jika ada
+        strengths = []
+        if 'product_ndc' in openfda:
+            strengths = openfda.get('product_ndc', [])
+        
         drug_info = {
             "nama": display_name,
             "nama_generik": display_name,
             "merek_dagang": ", ".join(openfda.get('brand_name', ['Tidak tersedia']))[:200],
-            "golongan": get_field('drug_class', "Tidak tersedia")[:100],
+            "golongan": self._get_field(fda_data, 'drug_class', "Tidak tersedia")[:100],
             "indikasi": indications[:500] if indications != "Tidak tersedia" else "Tidak tersedia",
-            "dosis_dewasa": dosage[:500] if dosage != "Tidak tersedia" else "Tidak tersedia",
+            "dosis_dewasa": dosage_info['dewasa'][:300] if dosage_info['dewasa'] != "Tidak tersedia" else "Tidak tersedia",
+            "dosis_anak": dosage_info['anak'][:300] if dosage_info['anak'] != "Tidak tersedia" else "Tidak tersedia",
+            "dosis_maksimal": dosage_info['maksimal'][:200] if dosage_info['maksimal'] != "Tidak tersedia" else "Tidak tersedia",
+            "catatan_dosis": dosage_info['catatan'][:200] if dosage_info['catatan'] != "Tidak tersedia" else "Tidak tersedia",
             "efek_samping": side_effects[:500] if side_effects != "Tidak tersedia" else "Tidak tersedia",
             "kontraindikasi": contraindications[:500] if contraindications != "Tidak tersedia" else "Tidak tersedia",
             "interaksi": interactions[:500] if interactions != "Tidak tersedia" else "Tidak tersedia",
             "peringatan": warnings[:500] if warnings != "Tidak tersedia" else "Tidak tersedia",
             "bentuk_sediaan": ", ".join(openfda.get('dosage_form', ['Tidak tersedia']))[:100],
             "route_pemberian": ", ".join(openfda.get('route', ['Tidak tersedia']))[:100],
+            "kekuatan": ", ".join(strengths[:3]) if strengths else "Tidak tersedia",
             "sumber": "FDA API"
         }
         
         # Tambahkan catatan untuk nama FDA yang berbeda
         if generic_name.lower() in ['acetaminophen', 'albuterol', 'ascorbic acid']:
-            drug_info['catatan'] = f"Di FDA dikenal sebagai {generic_name}"
+            drug_info['catatan_fda'] = f"Di FDA dikenal sebagai {generic_name}"
         
         return drug_info
+    
+    def _get_field(self, fda_data: dict, field_name: str, default: str = "Tidak tersedia"):
+        """Helper untuk mendapatkan field dengan handling yang lebih baik"""
+        if field_name not in fda_data:
+            return default
+        
+        value = fda_data[field_name]
+        if isinstance(value, list):
+            if value:
+                return ' '.join([str(v) for v in value if v])[:300]
+            return default
+        elif value:
+            return str(value)[:300]
+        
+        return default
     
     def _extract_indications(self, fda_data: dict):
         """Ekstrak informasi indikasi"""
@@ -234,24 +358,6 @@ class FDADrugAPI:
             'indications_and_usage',
             'purpose',
             'description'
-        ]
-        
-        for field in fields_to_check:
-            if field in fda_data and fda_data[field]:
-                value = fda_data[field]
-                if isinstance(value, list) and value:
-                    return value[0][:500]
-                elif value:
-                    return str(value)[:500]
-        
-        return "Tidak tersedia"
-    
-    def _extract_dosage(self, fda_data: dict):
-        """Ekstrak informasi dosis"""
-        fields_to_check = [
-            'dosage_and_administration',
-            'directions',
-            'dosage'
         ]
         
         for field in fields_to_check:
@@ -307,6 +413,144 @@ class FDADrugAPI:
                 return str(value)[:500]
         
         return "Tidak tersedia"
+    
+    def _get_detailed_dosage_info(self, fda_data: dict, drug_name: str):
+        """Dapatkan informasi dosis detail dengan fallback"""
+        result = {
+            'dewasa': 'Tidak tersedia',
+            'anak': 'Tidak tersedia',
+            'maksimal': 'Tidak tersedia',
+            'catatan': 'Tidak tersedia'
+        }
+        
+        # Coba ekstrak dari FDA data pertama
+        fda_dosage = self._extract_detailed_dosage_from_fda(fda_data)
+        
+        if fda_dosage['dewasa'] != 'Tidak tersedia':
+            # Jika FDA punya data, gunakan itu
+            return fda_dosage
+        else:
+            # Jika FDA tidak punya data, gunakan fallback database
+            if drug_name in self.dosage_fallback_db:
+                return self.dosage_fallback_db[drug_name]
+        
+        return result
+    
+    def _extract_detailed_dosage_from_fda(self, fda_data: dict):
+        """Ekstrak informasi dosis detail dari data FDA"""
+        result = {
+            'dewasa': 'Tidak tersedia',
+            'anak': 'Tidak tersedia',
+            'maksimal': 'Tidak tersedia',
+            'catatan': 'Tidak tersedia'
+        }
+        
+        # Cek field dosage_and_administration
+        if 'dosage_and_administration' in fda_data and fda_data['dosage_and_administration']:
+            dosage_text = fda_data['dosage_and_administration']
+            if isinstance(dosage_text, list) and dosage_text:
+                dosage_text = ' '.join([str(t) for t in dosage_text if t])
+            elif not isinstance(dosage_text, str):
+                dosage_text = str(dosage_text)
+            
+            # Analisis teks dosis
+            analyzed_dosage = self._analyze_dosage_text(dosage_text)
+            
+            # Update result dengan informasi yang ditemukan
+            for key in ['dewasa', 'anak', 'maksimal', 'catatan']:
+                if analyzed_dosage.get(key) and analyzed_dosage[key] != 'Tidak tersedia':
+                    result[key] = analyzed_dosage[key]
+        
+        return result
+    
+    def _analyze_dosage_text(self, text: str):
+        """Analisis teks dosis untuk ekstrak informasi spesifik"""
+        result = {
+            'dewasa': 'Tidak tersedia',
+            'anak': 'Tidak tersedia',
+            'maksimal': 'Tidak tersedia',
+            'catatan': 'Tidak tersedia'
+        }
+        
+        text_lower = text.lower()
+        
+        # Pola pencarian untuk dosis dewasa
+        adult_patterns = [
+            r'adult[s]?\s*dose[:\s]*([^\.]+)',
+            r'adult[s]?\s*:\s*([^\.]+)',
+            r'for adult[s]?\s*([^\.]+)',
+            r'recommended dose\s*([^\.]+)',
+            r'usual dose\s*([^\.]+)',
+            r'(\d+\s*-\s*\d+\s*mg.*?(?:per|every|daily))',
+            r'(\d+\s*mg.*?(?:per|every|daily))'
+        ]
+        
+        # Cari dosis dewasa
+        for pattern in adult_patterns:
+            matches = re.findall(pattern, text_lower)
+            if matches:
+                result['dewasa'] = self._clean_dosage_text(matches[0])
+                break
+        
+        # Pola pencarian untuk dosis anak
+        pediatric_patterns = [
+            r'pediatric[s]?\s*dose[:\s]*([^\.]+)',
+            r'children[s]?\s*dose[:\s]*([^\.]+)',
+            r'for children\s*([^\.]+)',
+            r'child dose\s*([^\.]+)',
+            r'(\d+\s*mg/kg.*?(?:per|every|daily))',
+            r'(\d+\s*-\s*\d+\s*mg/kg)'
+        ]
+        
+        # Cari dosis anak
+        for pattern in pediatric_patterns:
+            matches = re.findall(pattern, text_lower)
+            if matches:
+                result['anak'] = self._clean_dosage_text(matches[0])
+                break
+        
+        # Pola pencarian untuk dosis maksimal
+        max_patterns = [
+            r'maximum\s*dose[:\s]*([^\.]+)',
+            r'maximum\s*:\s*([^\.]+)',
+            r'maximum\s*([^\.]+)',
+            r'not exceed\s*([^\.]+)',
+            r'do not exceed\s*([^\.]+)',
+            r'max\s*(\d+\s*mg.*?per day)'
+        ]
+        
+        # Cari dosis maksimal
+        for pattern in max_patterns:
+            matches = re.findall(pattern, text_lower)
+            if matches:
+                result['maksimal'] = self._clean_dosage_text(matches[0])
+                break
+        
+        # Ekstrak catatan penting
+        warning_keywords = ['warning', 'caution', 'note', 'important', 'should', 'must']
+        sentences = text.split('.')
+        for sentence in sentences:
+            if any(keyword in sentence.lower() for keyword in warning_keywords):
+                if len(sentence.strip()) > 20:  # Hanya ambil kalimat yang bermakna
+                    result['catatan'] = sentence.strip()[:150]
+                    break
+        
+        return result
+    
+    def _clean_dosage_text(self, text: str):
+        """Bersihkan dan format teks dosis"""
+        # Hapus whitespace berlebih
+        text = ' '.join(text.split())
+        
+        # Capitalize huruf pertama
+        if text and len(text) > 0:
+            text = text[0].upper() + text[1:]
+        
+        # Batasi panjang teks
+        if len(text) > 150:
+            text = text[:147] + "..."
+        
+        return text
 
 # ===========================================
 # RAG MODEL
@@ -332,7 +576,7 @@ class SimpleRAGPharmaAssistant:
         if drug_info:
             if drug_name != fda_name:
                 drug_info['nama'] = drug_name.title()
-                drug_info['catatan'] = f"Di FDA dikenal sebagai {fda_name}"
+                drug_info['catatan_fda'] = f"Di FDA dikenal sebagai {fda_name}"
             
             drug_info = self._translate_all_fields(drug_info)
             self.drugs_cache[drug_key] = drug_info
@@ -342,9 +586,9 @@ class SimpleRAGPharmaAssistant:
     def _translate_all_fields(self, drug_info: dict):
         """Translate SEMUA field yang penting ke Bahasa Indonesia"""
         fields_to_translate = [
-            'indikasi', 'dosis_dewasa', 'efek_samping', 
-            'kontraindikasi', 'interaksi', 'peringatan',
-            'golongan', 'bentuk_sediaan', 'route_pemberian',
+            'indikasi', 'dosis_dewasa', 'dosis_anak', 'dosis_maksimal',
+            'catatan_dosis', 'efek_samping', 'kontraindikasi', 'interaksi', 
+            'peringatan', 'golongan', 'bentuk_sediaan', 'route_pemberian',
             'nama', 'merek_dagang'
         ]
         
@@ -380,11 +624,12 @@ class SimpleRAGPharmaAssistant:
                     break
             
             question_keywords = {
-                'dosis': ['dosis', 'berapa', 'takaran', 'aturan pakai'],
+                'dosis': ['dosis', 'berapa', 'takaran', 'aturan pakai', 'berapa mg', 'berapa ml'],
                 'efek': ['efek samping', 'side effect', 'bahaya', 'efeknya'],
                 'kontraindikasi': ['kontra', 'tidak boleh', 'hindari', 'larangan'],
                 'interaksi': ['interaksi', 'bereaksi dengan', 'makanan', 'minuman'],
-                'indikasi': ['untuk apa', 'kegunaan', 'manfaat', 'indikasi']
+                'indikasi': ['untuk apa', 'kegunaan', 'manfaat', 'indikasi'],
+                'peringatan': ['peringatan', 'warning', 'hati-hati']
             }
             
             for key, keywords in question_keywords.items():
@@ -414,15 +659,27 @@ class SimpleRAGPharmaAssistant:
             drug_info = result['drug_info']
             context += f"### OBAT {i}: {drug_info['nama']}\n"
             
-            if 'catatan' in drug_info:
-                context += f"- **Catatan:** {drug_info['catatan']}\n"
+            if 'catatan_fda' in drug_info:
+                context += f"- **Catatan:** {drug_info['catatan_fda']}\n"
+            
+            # Tampilkan informasi dosis dengan lengkap jika ada
+            if drug_info['dosis_dewasa'] != "Tidak tersedia":
+                context += f"- **Dosis Dewasa:** {drug_info['dosis_dewasa']}\n"
+            
+            if drug_info['dosis_anak'] != "Tidak tersedia":
+                context += f"- **Dosis Anak:** {drug_info['dosis_anak']}\n"
+            
+            if drug_info['dosis_maksimal'] != "Tidak tersedia":
+                context += f"- **Dosis Maksimal:** {drug_info['dosis_maksimal']}\n"
+            
+            if drug_info['catatan_dosis'] != "Tidak tersedia":
+                context += f"- **Catatan Dosis:** {drug_info['catatan_dosis']}\n"
             
             fields_to_display = [
                 ('Nama Generik', 'nama_generik'),
                 ('Merek Dagang', 'merek_dagang'),
                 ('Golongan', 'golongan'),
                 ('Indikasi', 'indikasi'),
-                ('Dosis Dewasa', 'dosis_dewasa'),
                 ('Efek Samping', 'efek_samping'),
                 ('Kontraindikasi', 'kontraindikasi'),
                 ('Interaksi', 'interaksi'),
@@ -475,7 +732,6 @@ class SimpleRAGPharmaAssistant:
             return f"**Informasi dari FDA:**\n\n{context}"
         
         try:
-            # PERUBAHAN PENTING: Ganti model ke gemini-2.5-flash-lite
             model = genai.GenerativeModel('gemini-2.5-flash-lite')
             
             prompt = f"""
@@ -499,10 +755,11 @@ class SimpleRAGPharmaAssistant:
             7. JANGAN membuat informasi baru di luar yang ada di data FDA
             8. Fokus pada informasi yang diminta dalam pertanyaan
             9. Untuk nama obat: gunakan nama Indonesia jika ada (contoh: acetaminophen = paracetamol)
+            10. UTAMAKAN INFORMASI DOSIS: Jika pertanyaan tentang dosis, berikan informasi dosis secara spesifik
             
             ## FORMAT JAWABAN:
             - Mulai dengan jawaban langsung
-            - Berikan informasi spesifik dari FDA
+            - Berikan informasi spesifik dari FDA (terutama dosis jika ditanyakan)
             - Tambahkan disclaimer medis
             - Akhiri dengan saran konsultasi
             
@@ -541,9 +798,9 @@ class SimpleRAGPharmaAssistant:
                 'timestamp': datetime.now()
             }
 
-
-# KELAS DRUG DETECTOR
-
+# ===========================================
+# DRUG DETECTOR
+# ===========================================
 class EnhancedDrugDetector:
     def __init__(self):
         self.drug_dictionary = {
@@ -742,7 +999,7 @@ class FocusedRAGEvaluator:
         
         return np.mean(faithful_scores) if faithful_scores else 0
     
-    def run_evaluation(self):  
+    def run_evaluation(self):
         """Jalankan evaluasi 2 metrik utama RAG"""
         try:
             # Hitung metrik
@@ -750,15 +1007,15 @@ class FocusedRAGEvaluator:
             faithfulness_score = self.calculate_faithfulness()
             
             # Konversi ke persentase
-            mrr_percentage = mrr_score * 100  
+            mrr_percentage = mrr_score * 100
             faithfulness_percentage = faithfulness_score * 100
             rag_percentage = ((mrr_score + faithfulness_score) / 2) * 100
             
             results = {
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "total_test_cases": len(self.test_set),
-                "MRR_raw": float(mrr_score),         
-                "MRR": float(mrr_percentage),          
+                "MRR_raw": float(mrr_score),
+                "MRR": float(mrr_percentage),
                 "Faithfulness_raw": float(faithfulness_score),
                 "Faithfulness": float(faithfulness_percentage),
                 "RAG_Score_raw": float((mrr_score + faithfulness_score) / 2),
@@ -772,16 +1029,6 @@ class FocusedRAGEvaluator:
             st.error(f"❌ Error dalam evaluasi: {str(e)}")
             return {
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "error": str(e),
-                "MRR": 0,
-                "Faithfulness": 0,
-                "RAG_Score": 0
-            }
-            
-        except Exception as e:
-            st.error(f"❌ Error dalam evaluasi: {str(e)}")
-            return {
-                "timestamp": datetime.now().strftime("%Y-%m-d %H:%M:%S"),
                 "error": str(e),
                 "MRR": 0,
                 "Faithfulness": 0,
@@ -820,6 +1067,7 @@ class FocusedRAGEvaluator:
             details.append(detail)
         
         return details
+
 # ===========================================
 # MAIN SISTEM
 # ===========================================
@@ -942,6 +1190,21 @@ def main():
             margin: 20px 0;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
+        .dosage-highlight {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success-badge {
+            background-color: #4CAF50;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
     </style>
     """, unsafe_allow_html=True)
 
@@ -954,13 +1217,13 @@ def main():
     
     # HALAMAN CHATBOT
     if page == "🏠 Chatbot Obat":
-        st.title("💊 Sistem Tanya Jawab Obat")
-        st.markdown("Sistem informasi obat dengan data langsung dari **FDA API** dan terjemahan menggunakan **")
+        st.title("💊 Sistem Tanya Jawab Obat dengan RAG")
+        st.markdown("Sistem informasi obat dengan data langsung dari **FDA API**")
 
         st.markdown("""
         <div class="fda-indicator">
             🏥 <strong>DATA RESMI FDA</strong> - Informasi obat langsung dari U.S. Food and Drug Administration
-            
+            <br>✅ <strong>Dosis Lengkap</strong> - Termasuk dosis dewasa, anak, dan maksimal
         </div>
         """, unsafe_allow_html=True)
 
@@ -969,10 +1232,12 @@ def main():
         if not st.session_state.messages:
             st.markdown("""
             <div class="welcome-message">
-                <h3>👋 Selamat Datang di Asisten Obat</h3>
+                <h3>👋 Selamat Datang di Asisten Obat FDA</h3>
                 <p>Dapatkan informasi obat <strong>langsung dari database resmi FDA</strong></p>
-               
-               
+                <p><strong>💡 Contoh pertanyaan tentang dosis:</strong></p>
+                <p>• "Apa dosis paracetamol untuk dewasa?"</p>
+                <p>• "Berapa dosis amoxicillin untuk anak?"</p>
+                <p>• "Dosis maksimal ibuprofen per hari?"</p>
             </div>
             """, unsafe_allow_html=True)
         else:
@@ -990,23 +1255,49 @@ def main():
                     st.markdown(f"""
                     <div class="bot-message">
                         <div>{message["content"]}</div>
-                        <div class="message-time">{message["timestamp"]} • Sumber: FDA API </div>
+                        <div class="message-time">{message["timestamp"]} • Sumber: FDA API</div>
                     </div>
                     """, unsafe_allow_html=True)
                     
                     if "sources" in message and message["sources"]:
                         with st.expander("📚 Informasi Obat dari FDA"):
                             for drug in message["sources"]:
+                                # Highlight informasi dosis jika ada
                                 card_content = f"""
                                 <div class="drug-card">
                                     <h4>💊 {drug['nama']}</h4>
                                     <p><strong>Golongan:</strong> {drug['golongan']}</p>
                                     <p><strong>Merek Dagang:</strong> {drug['merek_dagang']}</p>
-                                    <p><strong>Indikasi:</strong> {drug['indikasi'][:150]}...</p>
-                                    <p><strong>Bentuk:</strong> {drug['bentuk_sediaan']}</p>
                                 """
-                                if 'catatan' in drug:
-                                    card_content += f"<p><em>{drug['catatan']}</em></p>"
+                                
+                                # Tampilkan informasi dosis dengan highlight
+                                if drug['dosis_dewasa'] != "Tidak tersedia":
+                                    card_content += f"""
+                                    <div class="dosage-highlight">
+                                        <strong>📋 Dosis Dewasa:</strong> {drug['dosis_dewasa']}
+                                    </div>
+                                    """
+                                
+                                if drug['dosis_anak'] != "Tidak tersedia":
+                                    card_content += f"""
+                                    <div class="dosage-highlight">
+                                        <strong>👶 Dosis Anak:</strong> {drug['dosis_anak']}
+                                    </div>
+                                    """
+                                
+                                if drug['dosis_maksimal'] != "Tidak tersedia":
+                                    card_content += f"""
+                                    <div class="dosage-highlight">
+                                        <strong>⚠️ Dosis Maksimal:</strong> {drug['dosis_maksimal']}
+                                    </div>
+                                    """
+                                
+                                if drug['catatan_dosis'] != "Tidak tersedia":
+                                    card_content += f"<p><em>📝 Catatan: {drug['catatan_dosis']}</em></p>"
+                                
+                                if 'catatan_fda' in drug:
+                                    card_content += f"<p><small>ℹ️ {drug['catatan_fda']}</small></p>"
+                                
                                 card_content += "</div>"
                                 st.markdown(card_content, unsafe_allow_html=True)
             
@@ -1016,7 +1307,7 @@ def main():
         with st.form("chat_form", clear_on_submit=True):
             user_input = st.text_input(
                 "Tulis pertanyaan Anda tentang obat:",
-                placeholder="Contoh: Apa dosis paracetamol? Efek samping amoxicillin? Interaksi obat?",
+                placeholder="Contoh: Apa dosis paracetamol? Berapa mg amoxicillin untuk dewasa?",
                 key="user_input"
             )
             
@@ -1069,11 +1360,10 @@ def main():
         st.warning("""
         **⚠️ Peringatan Medis:** Informasi ini berasal dari database FDA AS dan untuk edukasi saja. 
         Selalu konsultasi dengan dokter atau apoteker sebelum menggunakan obat. 
-        Obat mungkin memiliki nama merek berbeda di Indonesia.
+        Dosis mungkin perlu disesuaikan dengan kondisi individu.
         """)
     
-       # HALAMAN EVALUASI RAG
-      # HALAMAN EVALUASI RAG
+    # HALAMAN EVALUASI RAG
     elif page == "📊 Evaluasi RAG":
         st.title("📊 Evaluasi Sistem RAG")
         st.markdown("**Fokus pada evaluasi komponen RETRIEVAL dan GENERATION dari RAG**")
@@ -1162,7 +1452,7 @@ def main():
             with col1:
                 # Gunakan nilai raw dan konversi ke persentase
                 mrr_raw = results.get("MRR_raw", 0)
-                mrr_display = mrr_raw * 100  # Pastikan konversi ke persentase
+                mrr_display = mrr_raw * 100
                 color_class = get_score_color(mrr_display, 80.0)
                 
                 st.markdown(f"""
@@ -1172,6 +1462,12 @@ def main():
                     <div>Retrieval Accuracy</div>
                 </div>
                 """, unsafe_allow_html=True)
+                
+                # Celebration untuk MRR 100%
+                if mrr_display >= 100.0:
+                    st.balloons()
+                    st.success("🎉 **PERFECT SCORE!** Sistem selalu menemukan obat yang benar di posisi pertama!")
+                
                 st.caption(f"**Target:** >80.0% | **Baseline:** 93.0%")
             
             with col2:
@@ -1192,10 +1488,10 @@ def main():
                 rag_score_raw = results.get("RAG_Score_raw", 0)
                 rag_score_display = rag_score_raw * 100
                 
-                if rag_score_display >= 80.0:
+                if rag_score_display >= 90.0:
                     rag_color = "#4CAF50"
                     rag_status = "Excellent"
-                elif rag_score_display >= 70.0:
+                elif rag_score_display >= 80.0:
                     rag_color = "#FF9800"
                     rag_status = "Good"
                 else:
@@ -1203,7 +1499,7 @@ def main():
                     rag_status = "Needs Improvement"
                 
                 st.markdown(f"""
-                <div class="rag-score-card">
+                <div class="rag-score-card" style="background: linear-gradient(135deg, {rag_color} 0%, {rag_color}88 100%);">
                     <div style="font-size: 1em; opacity: 0.9;">RAG Score</div>
                     <div style="font-size: 2.5em; font-weight: bold;">{rag_score_display:.1f}%</div>
                     <div style="font-size: 0.9em; font-weight: bold;">{rag_status}</div>
@@ -1257,7 +1553,7 @@ def main():
     st.markdown("---")
     st.markdown(
         "<div style='text-align: center; color: #666;'>"
-        "💊 **Sistem Tanya Jawab Obat dengan RAG**"
+        "💊 **Sistem Tanya Jawab Obat dengan RAG** • Data langsung dari FDA API • Dosis lengkap dengan fallback database"
         "</div>", 
         unsafe_allow_html=True
     )
