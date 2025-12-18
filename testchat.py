@@ -1564,7 +1564,7 @@ def main():
     st.markdown("---")
     st.markdown(
         "<div style='text-align: center; color: #666;'>"
-        "💊 **Sistem Tanya Jawab Obat dengan RAG** • Data langsung dari FDA API • Dosis lengkap dengan fallback database"
+        "💊 **Sistem Tanya Jawab Obat dengan RAG**"
         "</div>", 
         unsafe_allow_html=True
     )
